@@ -37,71 +37,148 @@ import os
 from os.path import exists
 import time
 from collections import deque
+from datetime import timedelta, date
+from datetime import datetime
+import random
 
 #Delete later
 from yahoo_fin import stock_info as si
 
-
-
-#------------------------------------------------------------------------------
-# Load Data
-## TO DO:
-# 1) Check if data has been saved before. 
-# If so, load the saved data
-# If not, save the data into a directory
-#------------------------------------------------------------------------------
+# Parameters
 DATA_SOURCE = "yahoo"
 COMPANY = "TSLA"
 
-# date now
-date_now = time.strftime("%Y-%m-%d")
+TRAIN_START = '2015-01-01'      #Start date of dataset    #Must be in 'YYYY-MM-DD' format eg '2015-01-01'
+TEST_END = '2022-12-31'         #End date of dataset    #Must be in 'YYYY-MM-DD' format eg '2022-12-31'
 
-# start = '2012-01-01', end='2017-01-01'
-TRAIN_START = '2015-01-01'
-TRAIN_END = '2020-01-01'
-TEST_START = '2020-01-02'
-TEST_END = '2022-12-31'
+SPLIT_DATE = '2020-01-01'       #Split date of dataset    #Must be in 'YYYY-MM-DD' format eg '2020-01-01'
+SPLIT_DATE_BOOL = False
+
+RATIO = 4      #Int or Float    #Not actually a ration, but idk what else to call it
+RATIO_BOOL = False               #2 is train/test equally split, 4 is train gets about 75% of data
+
+#If both SPLIT_DATE_BOOL and RATIO_BOOL are false, it picks a random date
 
 # Train and test data global variables for setting
 trainData = None
 testData = None
 
+# Function for checking if the data is already downloaded (needs internet connection to download)
+# If the data is NOT in a file, it downloads the data and makes a csv file and returns the data
+# If the data IS in a file, it reads the data from the file and returns the data
 def checkFiles(filename):
     if (os.path.exists(filename)):
+        #Read csv file and return the data inside
         data = pd.read_csv(filename)
         return data
     else:
+        #Download data from online
         data = yf.download(COMPANY, start=TRAIN_START, end=TEST_END, progress=False)
-        # yf.download(COMPANY, start = TRAIN_START, end=TRAIN_END)
 
+        # Save data to csv file
         data.to_csv(filename)
+        # For some reason it needs to read it from the file otherwise it won't work
+        data = pd.read_csv(filename)
         return data
 
-def getData(filename):
+# Base function for future purposes
+#def getData(filename):
+#    df = checkFiles(filename)
+#
+#    df['Date'] = pd.to_datetime(df['Date'])
+#    df = df.set_index(df['Date'])
+#    df = df.sort_index()
+#
+#    # create train test partition
+#    global trainData
+#    #trainData = df
+#    trainData = df[TRAIN_START:TRAIN_END]
+#    global testData
+#    testData = df[TEST_START:TEST_END]
+#    #testData = df
+#    print('Train Dataset:',trainData.shape)
+#    print('Test Dataset:',testData.shape)
+#
+#    #trainData.to_csv("trainfilename.csv")
+#    #testData.to_csv("testfilename.csv")        #test that the data is split correctly
+
+# This function gets the datafile name as well as the split date
+# it then runs the file checker to get the dataset, then splits the dataset at the split date
+def getDataSplitDate(filename, splitDate):
     df = checkFiles(filename)
 
+    # Make it know that the date colunm is indeed a date
     df['Date'] = pd.to_datetime(df['Date'])
     df = df.set_index(df['Date'])
     df = df.sort_index()
 
-    # create train test partition
+    #Convert input to datetime, add 1 day, then convert back to string+
+    date = datetime.strptime(splitDate, '%Y-%m-%d')
+    testStartDate = date + timedelta(days=1)
+    testStartDate = testStartDate.strftime('%Y-%m-%d')
+
+    # create train/test partition
     global trainData
-    trainData = df[TRAIN_START:TRAIN_END]
+    trainData = df[TRAIN_START:splitDate]
     global testData
-    testData = df['2021-01-01':]
+    testData = df[testStartDate:TEST_END]
     print('Train Dataset:',trainData.shape)
     print('Test Dataset:',testData.shape)
 
     #trainData.to_csv("trainfilename.csv")
     #testData.to_csv("testfilename.csv")        #test that the data is split correctly
 
-# make a filename for the data saved to file
-ticker_data_filename = os.path.join("data", f"{COMPANY}_{TRAIN_START}_{TRAIN_END}.csv")
 
+# This function gets the datafile name as well as the 'ratio' number
+# it then runs the file checker to get the dataset, then splits the dataset at the split date
+def getDataRatio(filename, ratio):
+    df = checkFiles(filename)
 
+    # Make it know that the date colunm is indeed a date
+    df['Date'] = pd.to_datetime(df['Date'])
+    df = df.set_index(df['Date'])
+    df = df.sort_index()
 
-getData(ticker_data_filename)
-#data = checkFiles(ticker_data_filename)
+    # Convert strings to dates
+    date1 = datetime.strptime(TRAIN_START, '%Y-%m-%d')
+    date2 = datetime.strptime(TEST_END, '%Y-%m-%d')
+
+    # do math to get the date we want
+    trainEndDate = date2 + (date1 - date2) / ratio
+
+    #Convert input to datetime, add 1 day, then convert back to string+
+    print("Middle : " + trainEndDate.strftime('%Y-%m-%d'))
+    testStartDate = trainEndDate + timedelta(days=1)
+    #testStartDate = testStartDate.strftime('%Y-%m-%d') # i don't remember why i commented this, but it works
+
+    # create train/test partition
+    global trainData
+    trainData = df[TRAIN_START:trainEndDate]
+    global testData
+    testData = df[testStartDate:TEST_END]
+
+    #trainData.to_csv("trainfilename.csv")
+    #testData.to_csv("testfilename.csv")        #test that the data is split correctly
+
+def getData(): #Main function for deciding which split method was chosen
+    #Make filename for the saved data file
+    ticker_data_filename = os.path.join("data", f"{COMPANY}_{TRAIN_START}_{TEST_END}.csv")
+    if (SPLIT_DATE_BOOL):
+        getDataSplitDate(ticker_data_filename, SPLIT_DATE)
+    elif (RATIO_BOOL):
+        getDataRatio(ticker_data_filename, 3.5)
+    else: #Random Date
+        #Convert dates to datetime
+        dateStart = datetime.strptime(TRAIN_START, '%Y-%m-%d')
+        dateEnd = datetime.strptime(TEST_END, '%Y-%m-%d')
+        #Get random date inbetween the start and end
+        random_date = dateStart + (dateEnd - dateStart) * random.random()
+        #convert back to string
+        random_date = random_date.strftime('%Y-%m-%d')
+        #Use random date as split
+        getDataSplitDate(ticker_data_filename, random_date)
+
+getData()
 
 # For more details: 
 # https://pandas.pydata.org/pandas-docs/stable/user_guide/dsintro.html
@@ -245,10 +322,10 @@ model.fit(x_train, y_train, epochs=25, batch_size=32)
 #TEST_END = '2022-12-31'
 
 #test_data = yf.download(COMPANY, start=TRAIN_START, end=TRAIN_END, progress=False)
-
+#
 #test_data_filename = os.path.join("data", f"{COMPANY}_{TRAIN_START}_{TRAIN_END}.csv")
-
-#testData = checkFiles(ticker_data_filename)
+#
+#testData = checkFiles(test_data_filename)
 
 # The above bug is the reason for the following line of code
 testData = testData[1:]
