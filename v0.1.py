@@ -41,10 +41,14 @@ from datetime import timedelta, date
 from datetime import datetime
 import random
 
-#Delete later
-from yahoo_fin import stock_info as si
+#
+#
+#
+# --------------------Parameters-----------------------------------------
+#
+#
+#
 
-# Parameters
 DATA_SOURCE = "yahoo"
 COMPANY = "TSLA"
 
@@ -58,6 +62,8 @@ RATIO = 4      #Int or Float    #Not actually a ration, but idk what else to cal
 RATIO_BOOL = False               #2 is train/test equally split, 4 is train gets about 75% of data
 
 #If both SPLIT_DATE_BOOL and RATIO_BOOL are false, it picks a random date
+
+SCALER = True                   # Pick whether to scale feature colunms or not
 
 # Train and test data global variables for setting
 trainData = None
@@ -201,25 +207,26 @@ getData()
 #------------------------------------------------------------------------------
 PRICE_VALUE = "Close"
 
-scaler = MinMaxScaler(feature_range=(0, 1)) 
-# Note that, by default, feature_range=(0, 1). Thus, if you want a different 
-# feature_range (min,max) then you'll need to specify it here
-scaled_data = scaler.fit_transform(trainData[PRICE_VALUE].values.reshape(-1, 1)) 
-# Flatten and normalise the data
-# First, we reshape a 1D array(n) to 2D array(n,1)
-# We have to do that because sklearn.preprocessing.fit_transform()
-# requires a 2D array
-# Here n == len(scaled_data)
-# Then, we scale the whole array to the range (0,1)
-# The parameter -1 allows (np.)reshape to figure out the array size n automatically 
-# values.reshape(-1, 1) 
-# https://stackoverflow.com/questions/18691084/what-does-1-mean-in-numpy-reshape'
-# When reshaping an array, the new shape must contain the same number of elements 
-# as the old shape, meaning the products of the two shapes' dimensions must be equal. 
-# When using a -1, the dimension corresponding to the -1 will be the product of 
-# the dimensions of the original array divided by the product of the dimensions 
-# given to reshape so as to maintain the same number of elements.
-
+if (SCALER):
+    scaler = MinMaxScaler(feature_range=(0, 1)) 
+    # Note that, by default, feature_range=(0, 1). Thus, if you want a different 
+    # feature_range (min,max) then you'll need to specify it here
+    scaled_data = scaler.fit_transform(trainData[PRICE_VALUE].values.reshape(-1, 1)) 
+    # Flatten and normalise the data
+    # First, we reshape a 1D array(n) to 2D array(n,1)
+    # We have to do that because sklearn.preprocessing.fit_transform()
+    # requires a 2D array
+    # Here n == len(scaled_data)
+    # Then, we scale the whole array to the range (0,1)
+    # The parameter -1 allows (np.)reshape to figure out the array size n automatically 
+    # values.reshape(-1, 1) 
+    # https://stackoverflow.com/questions/18691084/what-does-1-mean-in-numpy-reshape'
+    # When reshaping an array, the new shape must contain the same number of elements 
+    # as the old shape, meaning the products of the two shapes' dimensions must be equal. 
+    # When using a -1, the dimension corresponding to the -1 will be the product of 
+    # the dimensions of the original array divided by the product of the dimensions 
+    # given to reshape so as to maintain the same number of elements.
+    
 # Number of days to look back to base the prediction
 PREDICTION_DAYS = 60 # Original
 
