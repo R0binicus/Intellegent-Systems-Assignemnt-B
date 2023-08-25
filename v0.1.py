@@ -70,6 +70,12 @@ def checkFiles(filename):
     if (os.path.exists(filename)):
         #Read csv file and return the data inside
         data = pd.read_csv(filename)
+        # NaN values from pandas are values that are not present. For example in stocks if the stock data for a 
+        # specific day was not recorded, i believe it would still have a record for that day, only the values 
+        # would be NaN or 'Not a Number'
+        
+        #what dropna() does is simply remove the missing values from the dataset
+        data.dropna(inplace=True)
         return data
     else:
         #Download data from online
@@ -79,6 +85,8 @@ def checkFiles(filename):
         data.to_csv(filename)
         # For some reason it needs to read it from the file otherwise it won't work
         data = pd.read_csv(filename)
+        # remove NaN values from the dataset
+        data.dropna(inplace=True)
         return data
 
 # Base function for future purposes
