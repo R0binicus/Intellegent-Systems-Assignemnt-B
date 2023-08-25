@@ -24,10 +24,24 @@ import datetime as dt
 import tensorflow as tf
 import yfinance as yf
 
+from sklearn import preprocessing
 from sklearn.preprocessing import MinMaxScaler
+from sklearn.model_selection import train_test_split
 from tensorflow import keras
 from keras.models import Sequential
 from keras.layers import Dense, Dropout, LSTM, InputLayer
+
+# new
+
+import os
+from os.path import exists
+import time
+from collections import deque
+
+#Delete later
+from yahoo_fin import stock_info as si
+
+
 
 #------------------------------------------------------------------------------
 # Load Data
@@ -39,12 +53,55 @@ from keras.layers import Dense, Dropout, LSTM, InputLayer
 DATA_SOURCE = "yahoo"
 COMPANY = "TSLA"
 
+# date now
+date_now = time.strftime("%Y-%m-%d")
+
 # start = '2012-01-01', end='2017-01-01'
 TRAIN_START = '2015-01-01'
 TRAIN_END = '2020-01-01'
+TEST_START = '2020-01-02'
+TEST_END = '2022-12-31'
 
-data =  yf.download(COMPANY, start=TRAIN_START, end=TRAIN_END, progress=False)
-# yf.download(COMPANY, start = TRAIN_START, end=TRAIN_END)
+# Train and test data global variables for setting
+trainData = None
+testData = None
+
+def checkFiles(filename):
+    if (os.path.exists(filename)):
+        data = pd.read_csv(filename)
+        return data
+    else:
+        data = yf.download(COMPANY, start=TRAIN_START, end=TEST_END, progress=False)
+        # yf.download(COMPANY, start = TRAIN_START, end=TRAIN_END)
+
+        data.to_csv(filename)
+        return data
+
+def getData(filename):
+    df = checkFiles(filename)
+
+    df['Date'] = pd.to_datetime(df['Date'])
+    df = df.set_index(df['Date'])
+    df = df.sort_index()
+
+    # create train test partition
+    global trainData
+    trainData = df[TRAIN_START:TRAIN_END]
+    global testData
+    testData = df['2021-01-01':]
+    print('Train Dataset:',trainData.shape)
+    print('Test Dataset:',testData.shape)
+
+    #trainData.to_csv("trainfilename.csv")
+    #testData.to_csv("testfilename.csv")        #test that the data is split correctly
+
+# make a filename for the data saved to file
+ticker_data_filename = os.path.join("data", f"{COMPANY}_{TRAIN_START}_{TRAIN_END}.csv")
+
+
+
+getData(ticker_data_filename)
+#data = checkFiles(ticker_data_filename)
 
 # For more details: 
 # https://pandas.pydata.org/pandas-docs/stable/user_guide/dsintro.html
@@ -62,7 +119,7 @@ PRICE_VALUE = "Close"
 scaler = MinMaxScaler(feature_range=(0, 1)) 
 # Note that, by default, feature_range=(0, 1). Thus, if you want a different 
 # feature_range (min,max) then you'll need to specify it here
-scaled_data = scaler.fit_transform(data[PRICE_VALUE].values.reshape(-1, 1)) 
+scaled_data = scaler.fit_transform(trainData[PRICE_VALUE].values.reshape(-1, 1)) 
 # Flatten and normalise the data
 # First, we reshape a 1D array(n) to 2D array(n,1)
 # We have to do that because sklearn.preprocessing.fit_transform()
@@ -184,19 +241,23 @@ model.fit(x_train, y_train, epochs=25, batch_size=32)
 # Test the model accuracy on existing data
 #------------------------------------------------------------------------------
 # Load the test data
-TEST_START = '2020-01-02'
-TEST_END = '2022-12-31'
+#TEST_START = '2020-01-02'
+#TEST_END = '2022-12-31'
 
-test_data = yf.download(COMPANY, start=TRAIN_START, end=TRAIN_END, progress=False)
+#test_data = yf.download(COMPANY, start=TRAIN_START, end=TRAIN_END, progress=False)
+
+#test_data_filename = os.path.join("data", f"{COMPANY}_{TRAIN_START}_{TRAIN_END}.csv")
+
+#testData = checkFiles(ticker_data_filename)
 
 # The above bug is the reason for the following line of code
-test_data = test_data[1:]
+testData = testData[1:]
 
-actual_prices = test_data[PRICE_VALUE].values
+actual_prices = testData[PRICE_VALUE].values
 
-total_dataset = pd.concat((data[PRICE_VALUE], test_data[PRICE_VALUE]), axis=0)
+total_dataset = pd.concat((trainData[PRICE_VALUE], testData[PRICE_VALUE]), axis=0)
 
-model_inputs = total_dataset[len(total_dataset) - len(test_data) - PREDICTION_DAYS:].values
+model_inputs = total_dataset[len(total_dataset) - len(testData) - PREDICTION_DAYS:].values
 # We need to do the above because to predict the closing price of the fisrt
 # PREDICTION_DAYS of the test period [TEST_START, TEST_END], we'll need the 
 # data from the training period
