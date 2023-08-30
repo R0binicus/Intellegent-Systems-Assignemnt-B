@@ -33,6 +33,7 @@ from keras.layers import Dense, Dropout, LSTM, InputLayer
 
 # new
 
+import matplotlib
 import os
 from os.path import exists
 import time
@@ -170,7 +171,40 @@ def getData(): #Main function for deciding which split method was chosen
         #Use random date as split
         getDataSplitDate(ticker_data_filename, random_date)
 
+def candlestickChart():
+    #plt.plot(actual_prices, color="black", label=f"Actual {COMPANY} Price")
+    #plt.plot(predicted_prices, color="green", label=f"Predicted {COMPANY} Price")
+    #plt.title(f"{COMPANY} Share Price")
+    #plt.xlabel("Time")
+    #plt.ylabel(f"{COMPANY} Share Price")
+    #plt.legend()
+    #plt.show()
+
+    actual_prices_small = testData[-30:]
+
+    green_df = actual_prices_small[actual_prices_small.Close > actual_prices_small.Open].copy()
+    green_df["Height"] = green_df["Close"] - green_df["Open"]
+
+    red_df = actual_prices_small[actual_prices_small.Close < actual_prices_small.Open].copy()
+    red_df["Height"] = red_df["Open"] - red_df["Close"]
+
+    fig = plt.figure(figsize=(15,7))
+
+    plt.vlines(x=actual_prices_small["Date"], ymin=actual_prices_small["Low"], ymax=actual_prices_small["High"], color="grey")
+
+    plt.bar(x=green_df["Date"], height=green_df["Height"], bottom=green_df["Open"], color="green")
+
+    plt.bar(x=red_df["Date"], height=red_df["Height"], bottom=red_df["Close"], color="red")
+
+    plt.xlabel("Date")
+    plt.ylabel("Price ($)")
+
+    fig.show()
+    
+
 getData()
+
+candlestickChart()
 
 # For more details: 
 # https://pandas.pydata.org/pandas-docs/stable/user_guide/dsintro.html
@@ -380,6 +414,10 @@ plt.ylabel(f"{COMPANY} Share Price")
 plt.legend()
 plt.show()
 
+
+
+#candlestickChart()
+
 #------------------------------------------------------------------------------
 # Predict next day
 #------------------------------------------------------------------------------
@@ -408,3 +446,7 @@ print(f"Prediction: {prediction}")
 # the stock price:
 # https://github.com/jason887/Using-Deep-Learning-Neural-Networks-and-Candlestick-Chart-Representation-to-Predict-Stock-Market
 # Can you combine these different techniques for a better prediction??
+
+
+
+    
