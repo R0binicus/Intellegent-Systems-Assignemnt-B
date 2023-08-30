@@ -40,34 +40,9 @@ from collections import deque
 from datetime import timedelta, date
 from datetime import datetime
 import random
+from parameters import *
 
-#
-#
-#
-# --------------------Parameters-----------------------------------------
-#
-#
-#
 
-DATA_SOURCE = "yahoo"
-COMPANY = "TSLA"
-
-TRAIN_START = '2015-01-01'      #Start date of dataset    #Must be in 'YYYY-MM-DD' format eg '2015-01-01'
-TEST_END = '2022-12-31'         #End date of dataset    #Must be in 'YYYY-MM-DD' format eg '2022-12-31'
-
-SPLIT_DATE = '2020-01-01'       #Split date of dataset    #Must be in 'YYYY-MM-DD' format eg '2020-01-01'
-SPLIT_DATE_BOOL = False
-
-RATIO = 4      #Int or Float    #Not actually a ration, but idk what else to call it
-RATIO_BOOL = False               #2 is train/test equally split, 4 is train gets about 75% of data
-
-#If both SPLIT_DATE_BOOL and RATIO_BOOL are false, it picks a random date
-
-SCALER = True                   # Pick whether to scale feature colunms or not
-
-# Train and test data global variables for setting
-trainData = None
-testData = None
 
 # Function for checking if the data is already downloaded (needs internet connection to download)
 # If the data is NOT in a file, it downloads the data and makes a csv file and returns the data
@@ -87,15 +62,18 @@ def checkFiles(filename):
         #Download data from online
         data = yf.download(COMPANY, start=TRAIN_START, end=TEST_END, progress=False)
 
-        # Save data to csv file
+        # Save data to csv   file
         data.to_csv(filename)
         # For some reason it needs to read it from the file otherwise it won't work
         data = pd.read_csv(filename)
+        
+        if (STOREFILE == False):
+            os.remove(filename) #Remove stored file 
         # remove NaN values from the dataset
         data.dropna(inplace=True)
         return data
 
-# Base function for future purposes
+ #Base function for future purposes
 #def getData(filename):
 #    df = checkFiles(filename)
 #
@@ -207,25 +185,24 @@ getData()
 #------------------------------------------------------------------------------
 PRICE_VALUE = "Close"
 
-if (SCALER):
-    scaler = MinMaxScaler(feature_range=(0, 1)) 
-    # Note that, by default, feature_range=(0, 1). Thus, if you want a different 
-    # feature_range (min,max) then you'll need to specify it here
-    scaled_data = scaler.fit_transform(trainData[PRICE_VALUE].values.reshape(-1, 1)) 
-    # Flatten and normalise the data
-    # First, we reshape a 1D array(n) to 2D array(n,1)
-    # We have to do that because sklearn.preprocessing.fit_transform()
-    # requires a 2D array
-    # Here n == len(scaled_data)
-    # Then, we scale the whole array to the range (0,1)
-    # The parameter -1 allows (np.)reshape to figure out the array size n automatically 
-    # values.reshape(-1, 1) 
-    # https://stackoverflow.com/questions/18691084/what-does-1-mean-in-numpy-reshape'
-    # When reshaping an array, the new shape must contain the same number of elements 
-    # as the old shape, meaning the products of the two shapes' dimensions must be equal. 
-    # When using a -1, the dimension corresponding to the -1 will be the product of 
-    # the dimensions of the original array divided by the product of the dimensions 
-    # given to reshape so as to maintain the same number of elements.
+scaler = MinMaxScaler(feature_range=(0, 1)) 
+# Note that, by default, feature_range=(0, 1). Thus, if you want a different 
+# feature_range (min,max) then you'll need to specify it here
+scaled_data = scaler.fit_transform(trainData[PRICE_VALUE].values.reshape(-1, 1)) 
+# Flatten and normalise the data
+# First, we reshape a 1D array(n) to 2D array(n,1)
+# We have to do that because sklearn.preprocessing.fit_transform()
+# requires a 2D array
+# Here n == len(scaled_data)
+# Then, we scale the whole array to the range (0,1)
+# The parameter -1 allows (np.)reshape to figure out the array size n automatically 
+# values.reshape(-1, 1) 
+# https://stackoverflow.com/questions/18691084/what-does-1-mean-in-numpy-reshape'
+# When reshaping an array, the new shape must contain the same number of elements 
+# as the old shape, meaning the products of the two shapes' dimensions must be equal. 
+# When using a -1, the dimension corresponding to the -1 will be the product of 
+# the dimensions of the original array divided by the product of the dimensions 
+# given to reshape so as to maintain the same number of elements.
     
 # Number of days to look back to base the prediction
 PREDICTION_DAYS = 60 # Original
@@ -383,7 +360,8 @@ x_test = np.reshape(x_test, (x_test.shape[0], x_test.shape[1], 1))
 # TO DO: Explain the above 5 lines
 
 predicted_prices = model.predict(x_test)
-predicted_prices = scaler.inverse_transform(predicted_prices)
+if (SCALER):
+    predicted_prices = scaler.inverse_transform(predicted_prices)
 # Clearly, as we transform our data into the normalized range (0,1),
 # we now need to reverse this transformation 
 #------------------------------------------------------------------------------
@@ -412,7 +390,8 @@ real_data = np.array(real_data)
 real_data = np.reshape(real_data, (real_data.shape[0], real_data.shape[1], 1))
 
 prediction = model.predict(real_data)
-prediction = scaler.inverse_transform(prediction)
+if (SCALER):
+    prediction = scaler.inverse_transform(prediction)
 print(f"Prediction: {prediction}")
 
 # A few concluding remarks here:
