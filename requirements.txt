@@ -7,3 +7,4 @@ pandas-datareader
 yahoo_fin
 yfinance
 scikit-learn
+mplfinance

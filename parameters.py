@@ -13,17 +13,20 @@ TRAIN_START = '2015-01-01'      #Start date of dataset    #Must be in 'YYYY-MM-D
 TEST_END = '2022-12-31'         #End date of dataset    #Must be in 'YYYY-MM-DD' format eg '2022-12-31'
 
 SPLIT_DATE = '2020-01-01'       #Split date of dataset    #Must be in 'YYYY-MM-DD' format eg '2020-01-01'
-SPLIT_DATE_BOOL = True
 
 RATIO = 4      #Int or Float    #Not actually a ration, but idk what else to call it
-RATIO_BOOL = False               #2 is train/test equally split, 4 is train gets about 75% of data
+                                #2 is train/test equally split, 4 is train gets about 75% of data
 
-#If both SPLIT_DATE_BOOL and RATIO_BOOL are false, it picks a random date
+MODE = 3
+# 1 = Split dataset into train/test sets by date, then predict
+# 2 = Split dataset into train/test sets by ratio, then predict
+# 3 = Make candlestick chart of data from past NDAYS
+# 4 = Make boxplot chart of data from past NDAYS
+# Other = Split dataset into train/test sets randomly, then predict
 
-STOREFILE = True                   # Pick whether to store file or not
+NDAYS = 30                      # Set how many days to make a chart from
 
-SCALER = False                   # Pick whether to scale feature colunms or not
+STOREFILE = True                # Pick whether to store file or not
 
-# Train and test data global variables for setting
-trainData = None
-testData = None
+SCALER = True                   # Pick whether to scale feature colunms or not
+
