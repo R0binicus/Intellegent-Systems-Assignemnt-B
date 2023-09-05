@@ -29,7 +29,7 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import train_test_split
 from tensorflow import keras
 from keras.models import Sequential
-from keras.layers import Dense, Dropout, LSTM, InputLayer
+from keras.layers import Dense, Dropout, LSTM, InputLayer, RNN, GRU
 
 # new
 
@@ -157,40 +157,23 @@ def getDataRatio(filename, ratio):
     #trainData.to_csv("trainfilename.csv")
     #testData.to_csv("testfilename.csv")        #test that the data is split correctly
 
-def predict():
-    #Make sure it knows that testData is refering to the global
-    global testData
-    # For more details: 
-    # https://pandas.pydata.org/pandas-docs/stable/user_guide/dsintro.html
-    #------------------------------------------------------------------------------
-    # Prepare Data
-    ## To do:
-    # 1) Check if data has been prepared before. 
-    # If so, load the saved data
-    # If not, save the data into a directory
-    # 2) Use a different price value eg. mid-point of Open & Close
-    # 3) Change the Prediction days
-    #------------------------------------------------------------------------------
+
+    # construct the model
+    # model = create_model(N_STEPS, len(FEATURE_COLUMNS), units=UNITS, cell=CELL, n_layers=N_LAYERS, dropout=DROPOUT, 
+    #                 loss=LOSS,  optimizer=OPTIMIZER, bidirectional=BIDIRECTIONAL)
+
+    #(sequence_length, n_features, units=256, cell=LSTM, n_layers=2, dropout=0.3,
+    #            loss="mean_absolute_error", optimizer="rmsprop", bidirectional=False):
+
+    #(PREDICTION_DAYS, n_features, units=50, cell=LSTM, n_layers=2, dropout=0.2,
+    #            loss="mean_squared_error", optimizer="adam", bidirectional=False):
+
+def createModel(layer_num, layer_size, layer_name, dropout):
+
     PRICE_VALUE = "Close"
 
     scaler = MinMaxScaler(feature_range=(0, 1)) 
-    # Note that, by default, feature_range=(0, 1). Thus, if you want a different 
-    # feature_range (min,max) then you'll need to specify it here
     scaled_data = scaler.fit_transform(trainData[PRICE_VALUE].values.reshape(-1, 1)) 
-    # Flatten and normalise the data
-    # First, we reshape a 1D array(n) to 2D array(n,1)
-    # We have to do that because sklearn.preprocessing.fit_transform()
-    # requires a 2D array
-    # Here n == len(scaled_data)
-    # Then, we scale the whole array to the range (0,1)
-    # The parameter -1 allows (np.)reshape to figure out the array size n automatically 
-    # values.reshape(-1, 1) 
-    # https://stackoverflow.com/questions/18691084/what-does-1-mean-in-numpy-reshape'
-    # When reshaping an array, the new shape must contain the same number of elements 
-    # as the old shape, meaning the products of the two shapes' dimensions must be equal. 
-    # When using a -1, the dimension corresponding to the -1 will be the product of 
-    # the dimensions of the original array divided by the product of the dimensions 
-    # given to reshape so as to maintain the same number of elements.
 
     # Number of days to look back to base the prediction
     PREDICTION_DAYS = 60 # Original
@@ -207,92 +190,53 @@ def predict():
 
     # Convert them into an array
     x_train, y_train = np.array(x_train), np.array(y_train)
-    # Now, x_train is a 2D array(p,q) where p = len(scaled_data) - PREDICTION_DAYS
-    # and q = PREDICTION_DAYS; while y_train is a 1D array(p)
-
     x_train = np.reshape(x_train, (x_train.shape[0], x_train.shape[1], 1))
-    # We now reshape x_train into a 3D array(p, q, 1); Note that x_train 
-    # is an array of p inputs with each input being a 2D array 
 
-    #------------------------------------------------------------------------------
-    # Build the Model
-    ## TO DO:
-    # 1) Check if data has been built before. 
-    # If so, load the saved data
-    # If not, save the data into a directory
-    # 2) Change the model to increase accuracy?
-    #------------------------------------------------------------------------------
     model = Sequential() # Basic neural network
-    # See: https://www.tensorflow.org/api_docs/python/tf/keras/Sequential
-    # for some useful examples
-
-    model.add(LSTM(units=50, return_sequences=True, input_shape=(x_train.shape[1], 1)))
-    # This is our first hidden layer which also spcifies an input layer. 
-    # That's why we specify the input shape for this layer; 
-    # i.e. the format of each training example
-    # The above would be equivalent to the following two lines of code:
-    # model.add(InputLayer(input_shape=(x_train.shape[1], 1)))
-    # model.add(LSTM(units=50, return_sequences=True))
-    # For som eadvances explanation of return_sequences:
-    # https://machinelearningmastery.com/return-sequences-and-return-states-for-lstms-in-keras/
-    # https://www.dlology.com/blog/how-to-use-return_state-or-return_sequences-in-keras/
-    # As explained there, for a stacked LSTM, you must set return_sequences=True 
-    # when stacking LSTM layers so that the next LSTM layer has a 
-    # three-dimensional sequence input. 
-
-    # Finally, units specifies the number of nodes in this layer.
-    # This is one of the parameters you want to play with to see what number
-    # of units will give you better prediction quality (for your problem)
-
-    model.add(Dropout(0.2))
-    # The Dropout layer randomly sets input units to 0 with a frequency of 
-    # rate (= 0.2 above) at each step during training time, which helps 
-    # prevent overfitting (one of the major problems of ML). 
-
-    model.add(LSTM(units=50, return_sequences=True))
-    # More on Stacked LSTM:
-    # https://machinelearningmastery.com/stacked-long-short-term-memory-networks/
-
-    model.add(Dropout(0.2))
-    model.add(LSTM(units=50))
-    model.add(Dropout(0.2))
-
+    for i in range(layer_num):
+        if i == 0:
+            # first layer
+            model.add(layer_name(layer_size, return_sequences=True, input_shape=(x_train.shape[1], 1)))
+        elif i == layer_num - 1:
+            # last layer
+            model.add(layer_name(layer_size, return_sequences=False))
+        else:
+            # hidden layers
+            model.add(layer_name(layer_size, return_sequences=True))
+        # add dropout after each layer
+        model.add(Dropout(dropout))
+    
+    #model.add(LSTM(units=50, return_sequences=True, input_shape=(x_train.shape[1], 1)))
+    #model.add(Dropout(0.2))
+    #model.add(LSTM(units=50, return_sequences=True))
+    #model.add(Dropout(0.2))
+    #model.add(LSTM(units=50))
+    #model.add(Dropout(0.2))
     model.add(Dense(units=1)) 
-    # Prediction of the next closing value of the stock price
 
-    # We compile the model by specify the parameters for the model
-    # See lecture Week 6 (COS30018)
     model.compile(optimizer='adam', loss='mean_squared_error')
-    # The optimizer and loss are two important parameters when building an 
-    # ANN model. Choosing a different optimizer/loss can affect the prediction
-    # quality significantly. You should try other settings to learn; e.g.
-
-    # optimizer='rmsprop'/'sgd'/'adadelta'/...
-    # loss='mean_absolute_error'/'huber_loss'/'cosine_similarity'/...
-
-    # Now we are going to train this model with our training data 
-    # (x_train, y_train)
     model.fit(x_train, y_train, epochs=25, batch_size=32)
-    # Other parameters to consider: How many rounds(epochs) are we going to 
-    # train our model? Typically, the more the better, but be careful about
-    # overfitting!
-    # What about batch_size? Well, again, please refer to 
-    # Lecture Week 6 (COS30018): If you update your model for each and every 
-    # input sample, then there are potentially 2 issues: 1. If you training 
-    # data is very big (billions of input samples) then it will take VERY long;
-    # 2. Each and every input can immediately makes changes to your model
-    # (a souce of overfitting). Thus, we do this in batches: We'll look at
-    # the aggreated errors/losses from a batch of, say, 32 input samples
-    # and update our model based on this aggregated loss.
 
-    # TO DO:
-    # Save the model and reload it
-    # Sometimes, it takes a lot of effort to train your model (again, look at
-    # a training data with billions of input samples). Thus, after spending so 
-    # much computing power to train your model, you may want to save it so that
-    # in the future, when you want to make the prediction, you only need to load
-    # your pre-trained model and run it on the new input for which the prediction
-    # need to be made.
+    return model
+
+
+    
+
+def predict():
+    #createModel2(layer_num, layer_size, layer_name, dropout):
+    model = createModel(LAYER_NUM, LAYER_SIZE, LAYER_NAME, DROPOUT)
+
+    #Make sure it knows that testData is refering to the global
+    global testData
+
+    PRICE_VALUE = "Close"
+
+    # Number of days to look back to base the prediction
+    PREDICTION_DAYS = 60 # Original
+
+    scaler = MinMaxScaler(feature_range=(0, 1)) 
+
+    scaled_data = scaler.fit_transform(trainData[PRICE_VALUE].values.reshape(-1, 1)) 
 
     #------------------------------------------------------------------------------
     # Test the model accuracy on existing data
@@ -473,4 +417,141 @@ def Main(): #Main function for deciding which split method was chosen
 
 Main()
 
+
+def createModel2():
+    # For more details: 
+    # https://pandas.pydata.org/pandas-docs/stable/user_guide/dsintro.html
+    #------------------------------------------------------------------------------
+    # Prepare Data
+    ## To do:
+    # 1) Check if data has been prepared before. 
+    # If so, load the saved data
+    # If not, save the data into a directory
+    # 2) Use a different price value eg. mid-point of Open & Close
+    # 3) Change the Prediction days
+    #------------------------------------------------------------------------------
+    PRICE_VALUE = "Close"
+
+    scaler = MinMaxScaler(feature_range=(0, 1)) 
+    # Note that, by default, feature_range=(0, 1). Thus, if you want a different 
+    # feature_range (min,max) then you'll need to specify it here
+    scaled_data = scaler.fit_transform(trainData[PRICE_VALUE].values.reshape(-1, 1)) 
+    # Flatten and normalise the data
+    # First, we reshape a 1D array(n) to 2D array(n,1)
+    # We have to do that because sklearn.preprocessing.fit_transform()
+    # requires a 2D array
+    # Here n == len(scaled_data)
+    # Then, we scale the whole array to the range (0,1)
+    # The parameter -1 allows (np.)reshape to figure out the array size n automatically 
+    # values.reshape(-1, 1) 
+    # https://stackoverflow.com/questions/18691084/what-does-1-mean-in-numpy-reshape'
+    # When reshaping an array, the new shape must contain the same number of elements 
+    # as the old shape, meaning the products of the two shapes' dimensions must be equal. 
+    # When using a -1, the dimension corresponding to the -1 will be the product of 
+    # the dimensions of the original array divided by the product of the dimensions 
+    # given to reshape so as to maintain the same number of elements.
+
+    # Number of days to look back to base the prediction
+    PREDICTION_DAYS = 60 # Original
+
+    # To store the training data
+    x_train = []
+    y_train = []
+
+    scaled_data = scaled_data[:,0] # Turn the 2D array back to a 1D array
+    # Prepare the data
+    for x in range(PREDICTION_DAYS, len(scaled_data)):
+        x_train.append(scaled_data[x-PREDICTION_DAYS:x])
+        y_train.append(scaled_data[x])
+
+    # Convert them into an array
+    x_train, y_train = np.array(x_train), np.array(y_train)
+    # Now, x_train is a 2D array(p,q) where p = len(scaled_data) - PREDICTION_DAYS
+    # and q = PREDICTION_DAYS; while y_train is a 1D array(p)
+
+    x_train = np.reshape(x_train, (x_train.shape[0], x_train.shape[1], 1))
+    # We now reshape x_train into a 3D array(p, q, 1); Note that x_train 
+    # is an array of p inputs with each input being a 2D array 
+
+    #------------------------------------------------------------------------------
+    # Build the Model
+    ## TO DO:
+    # 1) Check if data has been built before. 
+    # If so, load the saved data
+    # If not, save the data into a directory
+    # 2) Change the model to increase accuracy?
+    #------------------------------------------------------------------------------
+    model = Sequential() # Basic neural network
+    # See: https://www.tensorflow.org/api_docs/python/tf/keras/Sequential
+    # for some useful examples
+
+    model.add(LSTM(units=50, return_sequences=True, input_shape=(x_train.shape[1], 1)))
+    # This is our first hidden layer which also spcifies an input layer. 
+    # That's why we specify the input shape for this layer; 
+    # i.e. the format of each training example
+    # The above would be equivalent to the following two lines of code:
+    # model.add(InputLayer(input_shape=(x_train.shape[1], 1)))
+    # model.add(LSTM(units=50, return_sequences=True))
+    # For some advances explanation of return_sequences:
+    # https://machinelearningmastery.com/return-sequences-and-return-states-for-lstms-in-keras/
+    # https://www.dlology.com/blog/how-to-use-return_state-or-return_sequences-in-keras/
+    # As explained there, for a stacked LSTM, you must set return_sequences=True 
+    # when stacking LSTM layers so that the next LSTM layer has a 
+    # three-dimensional sequence input. 
+
+    # Finally, units specifies the number of nodes in this layer.
+    # This is one of the parameters you want to play with to see what number
+    # of units will give you better prediction quality (for your problem)
+
+    model.add(Dropout(0.2))
+    # The Dropout layer randomly sets input units to 0 with a frequency of 
+    # rate (= 0.2 above) at each step during training time, which helps 
+    # prevent overfitting (one of the major problems of ML). 
+
+    model.add(LSTM(units=50, return_sequences=True))
+    # More on Stacked LSTM:
+    # https://machinelearningmastery.com/stacked-long-short-term-memory-networks/
+
+    model.add(Dropout(0.2))
+    model.add(LSTM(units=50))
+    model.add(Dropout(0.2))
+
+    model.add(Dense(units=1)) 
+    # Prediction of the next closing value of the stock price
+
+    # We compile the model by specify the parameters for the model
+    # See lecture Week 6 (COS30018)
+    model.compile(optimizer='adam', loss='mean_squared_error')
+    # The optimizer and loss are two important parameters when building an 
+    # ANN model. Choosing a different optimizer/loss can affect the prediction
+    # quality significantly. You should try other settings to learn; e.g.
+
+    # optimizer='rmsprop'/'sgd'/'adadelta'/...
+    # loss='mean_absolute_error'/'huber_loss'/'cosine_similarity'/...
+
+    # Now we are going to train this model with our training data 
+    # (x_train, y_train)
+    model.fit(x_train, y_train, epochs=25, batch_size=32)
+
+    return model
+    # Other parameters to consider: How many rounds(epochs) are we going to 
+    # train our model? Typically, the more the better, but be careful about
+    # overfitting!
+    # What about batch_size? Well, again, please refer to 
+    # Lecture Week 6 (COS30018): If you update your model for each and every 
+    # input sample, then there are potentially 2 issues: 1. If you training 
+    # data is very big (billions of input samples) then it will take VERY long;
+    # 2. Each and every input can immediately makes changes to your model
+    # (a souce of overfitting). Thus, we do this in batches: We'll look at
+    # the aggreated errors/losses from a batch of, say, 32 input samples
+    # and update our model based on this aggregated loss.
+
+    # TO DO:
+    # Save the model and reload it
+    # Sometimes, it takes a lot of effort to train your model (again, look at
+    # a training data with billions of input samples). Thus, after spending so 
+    # much computing power to train your model, you may want to save it so that
+    # in the future, when you want to make the prediction, you only need to load
+    # your pre-trained model and run it on the new input for which the prediction
+    # need to be made.
     
