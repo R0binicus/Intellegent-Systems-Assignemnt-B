@@ -45,17 +45,13 @@ SCALER = True                   # Pick whether to scale feature colunms or not
 # Default Parameters
 
 LAYER_NUM = 2
-
 LAYER_SIZE = 50
-
 LAYER_NAME = SimpleRNN
-
 DROPOUT = 0.2
 
+# Hyperparameters
 
-# Hyperparameters ------  Preset model parameters to use
-HYPERPARAM = 5            # 0 means default, 1 means base LSTM, 2 means base RNN, 3 means base GRU,
-                          # 4 means P1 settings, 5 means my custom settings
+HYPERPARAM = 5
 
 match HYPERPARAM:
     case 1: #LSTM
@@ -79,12 +75,15 @@ match HYPERPARAM:
         LAYER_NAME = LSTM
         DROPOUT = 0.4
     case 5: #Custom
-        LAYER_NUM = 3
-        LAYER_SIZE = 100
+        LAYER_NUM = 2
+        LAYER_SIZE = 50
         LAYER_NAME = GRU
-        DROPOUT = 0.3
+        DROPOUT = 0.1
     case _: #Default settings
-        LAYER_NUM = LAYER_NUM # dummy, default  already declared values up above so doing nothing uses them
+        LAYER_NUM = 2
+        LAYER_SIZE = 50
+        LAYER_NAME = SimpleRNN
+        DROPOUT = 0.2
 
 
 
