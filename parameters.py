@@ -1,4 +1,4 @@
-from keras.layers import LSTM, RNN, GRU
+from keras.layers import LSTM, SimpleRNN, GRU
 
 
 #
@@ -42,10 +42,49 @@ SCALER = True                   # Pick whether to scale feature colunms or not
 #
 #
 
+# Default Parameters
+
 LAYER_NUM = 2
 
 LAYER_SIZE = 50
 
-LAYER_NAME = LSTM
+LAYER_NAME = SimpleRNN
 
 DROPOUT = 0.2
+
+
+# Hyperparameters ------  Preset model parameters to use
+HYPERPARAM = 5            # 0 means default, 1 means base LSTM, 2 means base RNN, 3 means base GRU,
+                          # 4 means P1 settings, 5 means my custom settings
+
+match HYPERPARAM:
+    case 1: #LSTM
+        LAYER_NUM = 2
+        LAYER_SIZE = 50
+        LAYER_NAME = LSTM
+        DROPOUT = 0.2
+    case 2: # RNN
+        LAYER_NUM = 2
+        LAYER_SIZE = 50
+        LAYER_NAME = SimpleRNN
+        DROPOUT = 0.2
+    case 3: #GRU 
+        LAYER_NUM = 2
+        LAYER_SIZE = 50
+        LAYER_NAME = GRU
+        DROPOUT = 0.2
+    case 4: #P1 settings
+        LAYER_NUM = 2
+        LAYER_SIZE = 256
+        LAYER_NAME = LSTM
+        DROPOUT = 0.4
+    case 5: #Custom
+        LAYER_NUM = 3
+        LAYER_SIZE = 100
+        LAYER_NAME = GRU
+        DROPOUT = 0.3
+    case _: #Default settings
+        LAYER_NUM = LAYER_NUM # dummy, default  already declared values up above so doing nothing uses them
+
+
+

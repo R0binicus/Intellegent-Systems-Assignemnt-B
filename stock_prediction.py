@@ -29,7 +29,7 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import train_test_split
 from tensorflow import keras
 from keras.models import Sequential
-from keras.layers import Dense, Dropout, LSTM, InputLayer, RNN, GRU
+from keras.layers import Dense, Dropout, LSTM, InputLayer, SimpleRNN, GRU
 
 # new
 
@@ -169,7 +169,7 @@ def getDataRatio(filename, ratio):
     #            loss="mean_squared_error", optimizer="adam", bidirectional=False):
 
 def createModel(layer_num, layer_size, layer_name, dropout):
-
+    #Declare some variables so the model knows whats what
     PRICE_VALUE = "Close"
 
     scaler = MinMaxScaler(feature_range=(0, 1)) 
@@ -190,9 +190,14 @@ def createModel(layer_num, layer_size, layer_name, dropout):
 
     # Convert them into an array
     x_train, y_train = np.array(x_train), np.array(y_train)
+    # Now, x_train is a 2D array(p,q) where p = len(scaled_data) - PREDICTION_DAYS
+    # and q = PREDICTION_DAYS; while y_train is a 1D array(p)
     x_train = np.reshape(x_train, (x_train.shape[0], x_train.shape[1], 1))
+    # We now reshape x_train into a 3D array(p, q, 1); Note that x_train 
+    # is an array of p inputs with each input being a 2D array
 
     model = Sequential() # Basic neural network
+    #Add layers to network using for each loop, which takes the layer_num to determine how many layers are added
     for i in range(layer_num):
         if i == 0:
             # first layer
@@ -206,17 +211,15 @@ def createModel(layer_num, layer_size, layer_name, dropout):
         # add dropout after each layer
         model.add(Dropout(dropout))
     
-    #model.add(LSTM(units=50, return_sequences=True, input_shape=(x_train.shape[1], 1)))
-    #model.add(Dropout(0.2))
-    #model.add(LSTM(units=50, return_sequences=True))
-    #model.add(Dropout(0.2))
-    #model.add(LSTM(units=50))
-    #model.add(Dropout(0.2))
+    # Prediction of the next closing value of the stock price
     model.add(Dense(units=1)) 
 
     model.compile(optimizer='adam', loss='mean_squared_error')
+    # Now we are going to train this model with our training data 
+    # (x_train, y_train)
     model.fit(x_train, y_train, epochs=25, batch_size=32)
 
+    # Return completed model to be tested 
     return model
 
 
