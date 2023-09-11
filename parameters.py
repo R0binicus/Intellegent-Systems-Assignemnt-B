@@ -13,9 +13,15 @@ DATA_SOURCE = "yahoo"
 COMPANY = "TSLA"
 
 TRAIN_START = '2015-01-01'      #Start date of dataset    #Must be in 'YYYY-MM-DD' format eg '2015-01-01'
-TEST_END = '2022-12-31'         #End date of dataset    #Must be in 'YYYY-MM-DD' format eg '2022-12-31'
+TEST_END = '2023-06-30'         #End date of dataset    #Must be in 'YYYY-MM-DD' format eg '2022-12-31'
 
-SPLIT_DATE = '2020-01-01'       #Split date of dataset    #Must be in 'YYYY-MM-DD' format eg '2020-01-01'
+SPLIT_DATE = '2020-09-01'       #Split date of dataset    #Must be in 'YYYY-MM-DD' format eg '2020-09-01'
+    # WARNING must be on 2020-09-01 or later otherwise i don't think there is enough data to predict properly
+
+PREDICTION_DAYS = 1
+
+LOOKBACK_DAYS = 60              #Number of days to look back to base the prediction
+                                # 60 Original
 
 RATIO = 4      #Int or Float    #Not actually a ration, but idk what else to call it
                                 #2 is train/test equally split, 4 is train gets about 75% of data

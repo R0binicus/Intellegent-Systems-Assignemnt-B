@@ -109,10 +109,21 @@ def getDataSplitDate(filename, splitDate):
     df = df.set_index(df['Date'])
     df = df.sort_index()
 
-    #Convert input to datetime, add 1 day, then convert back to string+
+    #Convert input to datetime, add 1 day, then convert back to string
     date = datetime.strptime(splitDate, '%Y-%m-%d')
     testStartDate = date + timedelta(days=1)
     testStartDate = testStartDate.strftime('%Y-%m-%d')
+
+    # Code for testing dates
+    print('splitDate:',splitDate)
+    print('testStartDate:',testStartDate)
+
+    splitDate = '2020-09-01'
+    testStartDate = '2020-09-02'
+
+    # Code for testing dates
+    print('splitDate:',splitDate)
+    print('testStartDate:',testStartDate)
 
     # create train/test partition
     global trainData
@@ -143,10 +154,16 @@ def getDataRatio(filename, ratio):
     # do math to get the date we want
     trainEndDate = date2 + (date1 - date2) / ratio
 
-    #Convert input to datetime, add 1 day, then convert back to string+
+    #Convert input to datetime, add 1 day
     print("Middle : " + trainEndDate.strftime('%Y-%m-%d'))
     testStartDate = trainEndDate + timedelta(days=1)
-    #testStartDate = testStartDate.strftime('%Y-%m-%d') # i don't remember why i commented this, but it works
+    # Convert back to string
+    testStartDate = testStartDate.strftime('%Y-%m-%d')
+    trainEndDate = trainEndDate.strftime('%Y-%m-%d') 
+
+    # Code for testing dates
+    print('trainEndDate Dataset:',trainEndDate)
+    print('testStartDate:',testStartDate)
 
     # create train/test partition
     global trainData
@@ -157,7 +174,6 @@ def getDataRatio(filename, ratio):
     #trainData.to_csv("trainfilename.csv")
     #testData.to_csv("testfilename.csv")        #test that the data is split correctly
 
-
     # construct the model
     # model = create_model(N_STEPS, len(FEATURE_COLUMNS), units=UNITS, cell=CELL, n_layers=N_LAYERS, dropout=DROPOUT, 
     #                 loss=LOSS,  optimizer=OPTIMIZER, bidirectional=BIDIRECTIONAL)
@@ -165,7 +181,7 @@ def getDataRatio(filename, ratio):
     #(sequence_length, n_features, units=256, cell=LSTM, n_layers=2, dropout=0.3,
     #            loss="mean_absolute_error", optimizer="rmsprop", bidirectional=False):
 
-    #(PREDICTION_DAYS, n_features, units=50, cell=LSTM, n_layers=2, dropout=0.2,
+    #(LOOKBACK_DAYS, n_features, units=50, cell=LSTM, n_layers=2, dropout=0.2,
     #            loss="mean_squared_error", optimizer="adam", bidirectional=False):
 
 def createModel(layer_num, layer_size, layer_name, dropout):
@@ -175,23 +191,20 @@ def createModel(layer_num, layer_size, layer_name, dropout):
     scaler = MinMaxScaler(feature_range=(0, 1)) 
     scaled_data = scaler.fit_transform(trainData[PRICE_VALUE].values.reshape(-1, 1)) 
 
-    # Number of days to look back to base the prediction
-    PREDICTION_DAYS = 60 # Original
-
     # To store the training data
     x_train = []
     y_train = []
 
     scaled_data = scaled_data[:,0] # Turn the 2D array back to a 1D array
     # Prepare the data
-    for x in range(PREDICTION_DAYS, len(scaled_data)):
-        x_train.append(scaled_data[x-PREDICTION_DAYS:x])
+    for x in range(LOOKBACK_DAYS, len(scaled_data)):
+        x_train.append(scaled_data[x-LOOKBACK_DAYS:x])
         y_train.append(scaled_data[x])
 
     # Convert them into an array
     x_train, y_train = np.array(x_train), np.array(y_train)
-    # Now, x_train is a 2D array(p,q) where p = len(scaled_data) - PREDICTION_DAYS
-    # and q = PREDICTION_DAYS; while y_train is a 1D array(p)
+    # Now, x_train is a 2D array(p,q) where p = len(scaled_data) - LOOKBACK_DAYS
+    # and q = LOOKBACK_DAYS; while y_train is a 1D array(p)
     x_train = np.reshape(x_train, (x_train.shape[0], x_train.shape[1], 1))
     # We now reshape x_train into a 3D array(p, q, 1); Note that x_train 
     # is an array of p inputs with each input being a 2D array
@@ -222,10 +235,39 @@ def createModel(layer_num, layer_size, layer_name, dropout):
     # Return completed model to be tested 
     return model
 
+def predict(model, data):
+    # Predict future day
 
+    y_future = []
+
+    prediction = model.predict(data)
+
+    y_future.append(prediction.flatten()[0])
+
+    # convert array into dataframe
+    DF = pd.DataFrame(data)
     
+    # save the dataframe as a csv file
+    DF.to_csv("data1.csv")
+    
+    data.append(prediction)
 
-def predict():
+    return data.iloc[-1]
+
+    ## retrieve the last sequence from data
+    #last_sequence = data["last_sequence"][-LOOKBACK_DAYS:]
+    ## expand dimension
+    #last_sequence = np.expand_dims(last_sequence, axis=0)
+    ## get the prediction (scaled from 0 to 1)
+    #prediction = model.predict(last_sequence)
+    ## get the price (by inverting the scaling)
+    ##if SCALE:
+    #predicted_price = data["column_scaler"]["Close"].inverse_transform(prediction)[0][0]
+    ##else:
+    ##    predicted_price = prediction[0][0]
+    #return predicted_price
+
+def runTest():
     #createModel2(layer_num, layer_size, layer_name, dropout):
     model = createModel(LAYER_NUM, LAYER_SIZE, LAYER_NAME, DROPOUT)
 
@@ -233,9 +275,6 @@ def predict():
     global testData
 
     PRICE_VALUE = "Close"
-
-    # Number of days to look back to base the prediction
-    PREDICTION_DAYS = 60 # Original
 
     scaler = MinMaxScaler(feature_range=(0, 1)) 
 
@@ -261,9 +300,9 @@ def predict():
 
     total_dataset = pd.concat((trainData[PRICE_VALUE], testData[PRICE_VALUE]), axis=0)
 
-    model_inputs = total_dataset[len(total_dataset) - len(testData) - PREDICTION_DAYS:].values
+    model_inputs = total_dataset[len(total_dataset) - len(testData) - LOOKBACK_DAYS:].values
     # We need to do the above because to predict the closing price of the fisrt
-    # PREDICTION_DAYS of the test period [TEST_START, TEST_END], we'll need the 
+    # LOOKBACK_DAYS of the test period [TEST_START, TEST_END], we'll need the 
     # data from the training period
 
     model_inputs = model_inputs.reshape(-1, 1)
@@ -287,8 +326,8 @@ def predict():
     # Make predictions on test data
     #------------------------------------------------------------------------------
     x_test = []
-    for x in range(PREDICTION_DAYS, len(model_inputs)):
-        x_test.append(model_inputs[x - PREDICTION_DAYS:x, 0])
+    for x in range(LOOKBACK_DAYS, len(model_inputs)):
+        x_test.append(model_inputs[x - LOOKBACK_DAYS:x, 0])
 
     x_test = np.array(x_test)
     x_test = np.reshape(x_test, (x_test.shape[0], x_test.shape[1], 1))
@@ -324,11 +363,12 @@ def predict():
     #------------------------------------------------------------------------------
 
 
-    real_data = [model_inputs[len(model_inputs) - PREDICTION_DAYS:, 0]]
+    real_data = [model_inputs[len(model_inputs) - LOOKBACK_DAYS:, 0]]
     real_data = np.array(real_data)
     real_data = np.reshape(real_data, (real_data.shape[0], real_data.shape[1], 1))
 
-    prediction = model.predict(real_data)
+    #prediction = model.predict(real_data)
+    prediction = predict(model, real_data)
     if (SCALER):
         prediction = scaler.inverse_transform(prediction)
     print(f"Prediction: {prediction}")
@@ -347,6 +387,10 @@ def predict():
     # the stock price:
     # https://github.com/jason887/Using-Deep-Learning-Neural-Networks-and-Candlestick-Chart-Representation-to-Predict-Stock-Market
     # Can you combine these different techniques for a better prediction??
+
+    
+
+
 
 
 
@@ -372,16 +416,17 @@ def candlestickChart(filename):
 def boxplotChart(filename):
     # Get data
     df = checkFiles(filename)
-
-    # Make sure it's only using the data and close colunms
-    dateClose = df[['Date', 'Close']]
     # Get the last n days 
-    actual_prices_small = dateClose[-NDAYS:]
+    actual_prices_small = df[-NDAYS:]
 
     # Plot the boxplot chart
-    fig = actual_prices_small["Close"].plot(kind='box', title='Boxplot Chart', grid=True)
+    fig = actual_prices_small[['Open', 'Close', 'Low', 'High']].plot(kind='box', title='Boxplot Chart', grid=True)
     # Uses Matplotlib  to make the boxplot chart
     # uses grid=True to make a grid so the chart is easier to read
+
+    # Add axis labels
+    plt.xlabel("Stock Data Type")
+    plt.ylabel("Price")
 
     # Display the plot
     plt.show()
@@ -394,11 +439,11 @@ def Main(): #Main function for deciding which split method was chosen
     match MODE: 
         case 1: #Predict with date split
             getDataSplitDate(ticker_data_filename, SPLIT_DATE)
-            predict()
+            runTest()
 
         case 2: #Predict with ratio split
             getDataRatio(ticker_data_filename, RATIO)
-            predict()
+            runTest()
 
         case 3: #Candlestick Chart
             candlestickChart(ticker_data_filename)
@@ -416,7 +461,7 @@ def Main(): #Main function for deciding which split method was chosen
             random_date = random_date.strftime('%Y-%m-%d')
             #Use random date as split
             getDataSplitDate(ticker_data_filename, random_date)
-            predict()
+            runTest()
 
 Main()
 
@@ -454,23 +499,20 @@ def createModel2():
     # the dimensions of the original array divided by the product of the dimensions 
     # given to reshape so as to maintain the same number of elements.
 
-    # Number of days to look back to base the prediction
-    PREDICTION_DAYS = 60 # Original
-
     # To store the training data
     x_train = []
     y_train = []
 
     scaled_data = scaled_data[:,0] # Turn the 2D array back to a 1D array
     # Prepare the data
-    for x in range(PREDICTION_DAYS, len(scaled_data)):
-        x_train.append(scaled_data[x-PREDICTION_DAYS:x])
+    for x in range(LOOKBACK_DAYS, len(scaled_data)):
+        x_train.append(scaled_data[x-LOOKBACK_DAYS:x])
         y_train.append(scaled_data[x])
 
     # Convert them into an array
     x_train, y_train = np.array(x_train), np.array(y_train)
-    # Now, x_train is a 2D array(p,q) where p = len(scaled_data) - PREDICTION_DAYS
-    # and q = PREDICTION_DAYS; while y_train is a 1D array(p)
+    # Now, x_train is a 2D array(p,q) where p = len(scaled_data) - LOOKBACK_DAYS
+    # and q = LOOKBACK_DAYS; while y_train is a 1D array(p)
 
     x_train = np.reshape(x_train, (x_train.shape[0], x_train.shape[1], 1))
     # We now reshape x_train into a 3D array(p, q, 1); Note that x_train 
