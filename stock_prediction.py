@@ -235,38 +235,6 @@ def createModel(layer_num, layer_size, layer_name, dropout):
     # Return completed model to be tested 
     return model
 
-def predict(model, data):
-    # Predict future day
-
-    y_future = []
-
-    prediction = model.predict(data)
-
-    y_future.append(prediction.flatten()[0])
-
-    # convert array into dataframe
-    DF = pd.DataFrame(data)
-    
-    # save the dataframe as a csv file
-    DF.to_csv("data1.csv")
-    
-    data.append(prediction)
-
-    return data.iloc[-1]
-
-    ## retrieve the last sequence from data
-    #last_sequence = data["last_sequence"][-LOOKBACK_DAYS:]
-    ## expand dimension
-    #last_sequence = np.expand_dims(last_sequence, axis=0)
-    ## get the prediction (scaled from 0 to 1)
-    #prediction = model.predict(last_sequence)
-    ## get the price (by inverting the scaling)
-    ##if SCALE:
-    #predicted_price = data["column_scaler"]["Close"].inverse_transform(prediction)[0][0]
-    ##else:
-    ##    predicted_price = prediction[0][0]
-    #return predicted_price
-
 def runTest():
     #createModel2(layer_num, layer_size, layer_name, dropout):
     model = createModel(LAYER_NUM, LAYER_SIZE, LAYER_NAME, DROPOUT)
@@ -338,40 +306,63 @@ def runTest():
         predicted_prices = scaler.inverse_transform(predicted_prices)
     # Clearly, as we transform our data into the normalized range (0,1),
     # we now need to reverse this transformation 
-    #------------------------------------------------------------------------------
-    # Plot the test predictions
-    ## To do:
-    # 1) Candle stick charts
-    # 2) Chart showing High & Lows of the day
-    # 3) Show chart of next few days (predicted)
-    #------------------------------------------------------------------------------
-
-    plt.plot(actual_prices, color="black", label=f"Actual {COMPANY} Price")
-    plt.plot(predicted_prices, color="green", label=f"Predicted {COMPANY} Price")
-    plt.title(f"{COMPANY} Share Price")
-    plt.xlabel("Time")
-    plt.ylabel(f"{COMPANY} Share Price")
-    plt.legend()
-    plt.show()
-
-
-
-    #candlestickChart()
 
     #------------------------------------------------------------------------------
     # Predict next day
     #------------------------------------------------------------------------------
 
+    futurePrice = []
 
-    real_data = [model_inputs[len(model_inputs) - LOOKBACK_DAYS:, 0]]
-    real_data = np.array(real_data)
-    real_data = np.reshape(real_data, (real_data.shape[0], real_data.shape[1], 1))
 
-    #prediction = model.predict(real_data)
-    prediction = predict(model, real_data)
-    if (SCALER):
-        prediction = scaler.inverse_transform(prediction)
-    print(f"Prediction: {prediction}")
+    i = 0
+ 
+    while i < PREDICTION_DAYS:
+        i += 1
+
+        real_data = [model_inputs[len(model_inputs) - PREDICTION_DAYS:, 0]]
+        real_data = np.array(real_data)
+        real_data = np.reshape(real_data, (real_data.shape[0], real_data.shape[1], 1))
+ 
+        prediction = model.predict(real_data)
+
+        scaledPrdiction = scaler.inverse_transform(prediction)
+
+        futurePrice.append(scaledPrdiction.flatten()[0])
+
+        prediction = prediction.flatten()[0]
+
+        print(futurePrice)
+
+        model_inputs = pd.DataFrame(model_inputs)
+        model_inputs.loc['0'] = prediction
+        model_inputs = model_inputs.to_numpy()
+
+        
+
+
+
+
+
+        # make it unscales prediction data
+
+        # make it so it redoes the declaromg of real_data
+ 
+        # make it so it adds to real_data
+
+        # male it so it rescales the real_data
+
+        #futurePrice.append()
+
+    #LINK https://stackoverflow.com/questions/69785891/how-to-use-the-lstm-model-for-multi-step-forecasting/69787683#69787683
+
+    df_futurePrices = pd.DataFrame(columns=['Index','Forecast'])
+    DF = pd.DataFrame(predicted_prices)
+    df_futurePrices['Index'] = range(DF.index[-1] + 1, DF.index[-1] + 1 + PREDICTION_DAYS)
+    df_futurePrices = df_futurePrices.set_index("Index")
+    df_futurePrices['Forecast'] = np.array(futurePrice)
+
+    DF = pd.DataFrame(df_futurePrices)
+    DF.to_csv("data9.csv")
 
     # A few concluding remarks here:
     # 1. The predictor is quite bad, especially if you look at the next day 
@@ -387,6 +378,27 @@ def runTest():
     # the stock price:
     # https://github.com/jason887/Using-Deep-Learning-Neural-Networks-and-Candlestick-Chart-Representation-to-Predict-Stock-Market
     # Can you combine these different techniques for a better prediction??
+
+    #------------------------------------------------------------------------------
+    # Plot the test predictions
+    ## To do:
+    # 1) Candle stick charts
+    # 2) Chart showing High & Lows of the day
+    # 3) Show chart of next few days (predicted)
+    #------------------------------------------------------------------------------
+
+    plt.plot(actual_prices, color="black", label=f"Actual {COMPANY} Price")
+    plt.plot(predicted_prices, color="green", label=f"Predicted {COMPANY} Price")
+    plt.plot(df_futurePrices, color="orange", label=f"Predicted {COMPANY} Future Price")
+    plt.title(f"{COMPANY} Share Price")
+    plt.xlabel("Time")
+    plt.ylabel(f"{COMPANY} Share Price")
+    plt.legend()
+    plt.show()
+
+
+
+    #candlestickChart()
 
     
 
