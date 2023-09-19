@@ -26,6 +26,8 @@ LOOKBACK_DAYS = 60              #Number of days to look back to base the predict
 RATIO = 4      #Int or Float    #Not actually a ration, but idk what else to call it
                                 #2 is train/test equally split, 4 is train gets about 75% of data
 
+FEATURE_COLUNMS = 'Open','High','Low','Close','Adj Close','Volume'
+
 MODE = 2
 # 1 = Split dataset into train/test sets by date, then predict
 # 2 = Split dataset into train/test sets by ratio, then predict

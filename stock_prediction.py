@@ -128,8 +128,10 @@ def getDataSplitDate(filename, splitDate):
     # create train/test partition
     global trainData
     trainData = df[TRAIN_START:splitDate]
+    trainData = trainData.drop(trainData.columns[[0]], axis=1)
     global testData
     testData = df[testStartDate:TEST_END]
+    testData = testData.drop(testData.columns[[0]], axis=1)
     print('Train Dataset:',trainData.shape)
     print('Test Dataset:',testData.shape)
 
@@ -168,8 +170,10 @@ def getDataRatio(filename, ratio):
     # create train/test partition
     global trainData
     trainData = df[TRAIN_START:trainEndDate]
+    trainData = trainData.drop(trainData.columns[[0]], axis=1)
     global testData
     testData = df[testStartDate:TEST_END]
+    testData = testData.drop(testData.columns[[0]], axis=1)
 
     #trainData.to_csv("trainfilename.csv")
     #testData.to_csv("testfilename.csv")        #test that the data is split correctly
@@ -184,12 +188,117 @@ def getDataRatio(filename, ratio):
     #(LOOKBACK_DAYS, n_features, units=50, cell=LSTM, n_layers=2, dropout=0.2,
     #            loss="mean_squared_error", optimizer="adam", bidirectional=False):
 
+
+    # link: https://www.relataly.com/stock-market-prediction-using-multivariate-time-series-in-python/1815/
+
 def createModel(layer_num, layer_size, layer_name, dropout):
     #Declare some variables so the model knows whats what
     PRICE_VALUE = "Close"
 
+    PREDICT_COLUNM = "Close"
+
+    FEATURE_COLUNMS = ['Open','High','Low','Close','Adj Close','Volume']
+
+
+    
+
+    print('FEATURE LIST')
+    print([f for f in FEATURE_COLUNMS])
+
+    #trainData.to_csv("trainfilename.csv")
+
+    #df = df.drop(df.columns[[0, 1, 3]], axis=1)
+
+    train_df = trainData.sort_values(by=['Date']).copy()
+
+    data = pd.DataFrame(train_df)
+    data_filtered = data[FEATURE_COLUNMS]
+
+
+    # We add a prediction column and set dummy values to prepare the data for scaling
+    data_filtered_ext = data_filtered.copy()
+    data_filtered_ext['Prediction'] = data_filtered_ext['Close']
+
+    # Print the tail of the dataframe
+    data_filtered_ext.tail()
+
+    # Get the number of rows in the data
+    nrows = data_filtered.shape[0]
+
+    # Convert the data to numpy values
+    np_data_unscaled = np.array(data_filtered)
+    np_data = np.reshape(np_data_unscaled, (nrows, -1))
+    print(np_data.shape)
+
+    # Transform the data by scaling each feature to a range between 0 and 1
+    scaler = MinMaxScaler()
+    np_data_scaled = scaler.fit_transform(np_data_unscaled)
+
+    # Creating a separate scaler that works on a single column for scaling predictions
+    scaler_pred = MinMaxScaler()
+    df_Close = pd.DataFrame(data_filtered_ext['Close'])
+    np_Close_scaled = scaler_pred.fit_transform(df_Close)
+
+    # Set the sequence length - this is the timeframe used to make a single prediction
+    sequence_length = 50
+    
+    # Prediction Index
+    index_Close = data.columns.get_loc("Close")
+    
+    # Split the training data into train and train data sets
+    # As a first step, we get the number of rows to train the model on 80% of the data 
+    train_data_len = math.ceil(np_data_scaled.shape[0] * 0.8)
+    
+    # Create the training and test data
+    train_data = np_data_scaled[0:train_data_len, :]
+    test_data = np_data_scaled[train_data_len - sequence_length:, :]
+    
+    # The RNN needs data with the format of [samples, time steps, features]
+    # Here, we create N samples, sequence_length time steps per sample, and 6 features
+    def partition_dataset(sequence_length, data):
+        x, y = [], []
+        data_len = data.shape[0]
+        for i in range(sequence_length, data_len):
+            x.append(data[i-sequence_length:i,:]) #contains sequence_length values 0-sequence_length * columsn
+            y.append(data[i, index_Close]) #contains the prediction values for validation,  for single-step prediction
+        
+        # Convert the x and y to numpy arrays
+        x = np.array(x)
+        y = np.array(y)
+        return x, y
+    
+    # Generate training data and test data
+    x_train, y_train = partition_dataset(sequence_length, train_data)
+    x_test, y_test = partition_dataset(sequence_length, test_data)
+    
+    # Print the shapes: the result is: (rows, training_sequence, features) (prediction value, )
+    print(x_train.shape, y_train.shape)
+    print(x_test.shape, y_test.shape)
+    
+    # Validate that the prediction value and the input match up
+    # The last close price of the second input sample should equal the first prediction value
+    print(x_train[1][sequence_length-1][index_Close])
+    print(y_train[0])
+
+    df_Close.to_csv("trainfilename.csv")
+
+
+
+
+
+
+
+
+
+
+
+
+    df_extract = trainData.filter([FEATURE_COLUNMS], axis=1)
+
     scaler = MinMaxScaler(feature_range=(0, 1)) 
     scaled_data = scaler.fit_transform(trainData[PRICE_VALUE].values.reshape(-1, 1)) 
+    #DF = pd.DataFrame(scaled_data)
+    #DF.to_csv("scaled_data.csv")
 
     # To store the training data
     x_train = []
@@ -243,6 +352,10 @@ def runTest():
     global testData
 
     PRICE_VALUE = "Close"
+
+    PREDICT_COLUNM = "Close"
+
+    FEATURE_COLUNMS = "Open", "High", "Low", "Close", "Adj Close", "Volume"
 
     scaler = MinMaxScaler(feature_range=(0, 1)) 
 
@@ -361,8 +474,8 @@ def runTest():
     df_futurePrices = df_futurePrices.set_index("Index")
     df_futurePrices['Forecast'] = np.array(futurePrice)
 
-    DF = pd.DataFrame(df_futurePrices)
-    DF.to_csv("data9.csv")
+    #DF = pd.DataFrame(df_futurePrices)
+    #DF.to_csv("data9.csv")
 
     # A few concluding remarks here:
     # 1. The predictor is quite bad, especially if you look at the next day 
