@@ -232,7 +232,7 @@ def multivariate_prediction():
     np_train_unscaled = np.array(data_filtered)
     np_test_unscaled = np.array(data_filtered2)
     np_data = np.reshape(np_train_unscaled, (nrows, -1))
-    print(np_data.shape)
+    #print(np_data.shape)
     # Transform the data by scaling each feature to a range between 0 and 1
     scaler = MinMaxScaler()
     np_train_scaled = scaler.fit_transform(np_train_unscaled)
@@ -243,14 +243,14 @@ def multivariate_prediction():
     df_Close = pd.DataFrame(data_filtered_ext['Close'])
     df_Close2 = pd.DataFrame(data_filtered_ext2['Close'])
     np_Close_scaled = scaler_pred.fit_transform(df_Close)
-    np_Close_scaled2 = scaler_pred.fit_transform(df_Close)
+    np_Close_scaled2 = scaler_pred.fit_transform(df_Close2)
     # Set the sequence length - this is the timeframe used to make a single prediction
     sequence_length = 50
     # Prediction Index
     index_Close = train_df.columns.get_loc("Close")
     # Split the training data into train and train data sets
     # As a first step, we get the number of rows to train the model on 80% of the data 
-    train_data_len = math.ceil(np_train_scaled.shape[0])# * 0.8)
+    #train_data_len = math.ceil(np_train_scaled.shape[0] * 0.8)
     # Create the training and test data
     train_data = np_train_scaled#[0:train_data_len, :]
     test_data = np_test_scaled#[train_data_len - sequence_length:, :]
