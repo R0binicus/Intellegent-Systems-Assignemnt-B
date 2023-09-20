@@ -16,6 +16,7 @@
 # pip install pandas-datareader
 # pip install yfinance
 
+import math
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -30,6 +31,15 @@ from sklearn.model_selection import train_test_split
 from tensorflow import keras
 from keras.models import Sequential
 from keras.layers import Dense, Dropout, LSTM, InputLayer, SimpleRNN, GRU
+from keras.callbacks import EarlyStopping
+
+
+
+# To Remove
+
+import seaborn as sns # Visualization
+sns.set_style('white', { 'axes.spines.right': False, 'axes.spines.top': False})
+
 
 # new
 
@@ -48,6 +58,7 @@ import mplfinance as mpl
 # Train and test data global variables for setting
 trainData = None
 testData = None
+fullData = None
 
 # Function for checking if the data is already downloaded (needs internet connection to download)
 # If the data is NOT in a file, it downloads the data and makes a csv file and returns the data
@@ -125,6 +136,8 @@ def getDataSplitDate(filename, splitDate):
     print('splitDate:',splitDate)
     print('testStartDate:',testStartDate)
 
+    fullData = df
+
     # create train/test partition
     global trainData
     trainData = df[TRAIN_START:splitDate]
@@ -167,6 +180,8 @@ def getDataRatio(filename, ratio):
     print('trainEndDate Dataset:',trainEndDate)
     print('testStartDate:',testStartDate)
 
+    fullData = df
+
     # create train/test partition
     global trainData
     trainData = df[TRAIN_START:trainEndDate]
@@ -191,68 +206,54 @@ def getDataRatio(filename, ratio):
 
     # link: https://www.relataly.com/stock-market-prediction-using-multivariate-time-series-in-python/1815/
 
-def createModel(layer_num, layer_size, layer_name, dropout):
-    #Declare some variables so the model knows whats what
-    PRICE_VALUE = "Close"
-
+def multivariate_prediction():
     PREDICT_COLUNM = "Close"
-
     FEATURE_COLUNMS = ['Open','High','Low','Close','Adj Close','Volume']
-
-
-    
-
     print('FEATURE LIST')
     print([f for f in FEATURE_COLUNMS])
-
     #trainData.to_csv("trainfilename.csv")
-
     #df = df.drop(df.columns[[0, 1, 3]], axis=1)
-
     train_df = trainData.sort_values(by=['Date']).copy()
-
-    data = pd.DataFrame(train_df)
-    data_filtered = data[FEATURE_COLUNMS]
-
-
+    test_df = testData.sort_values(by=['Date']).copy()
+    #data = pd.DataFrame(train_df)
+    data2 = pd.DataFrame(test_df)
+    data_filtered = train_df#[FEATURE_COLUNMS]
+    data_filtered2 = test_df
     # We add a prediction column and set dummy values to prepare the data for scaling
     data_filtered_ext = data_filtered.copy()
     data_filtered_ext['Prediction'] = data_filtered_ext['Close']
-
+    data_filtered_ext2 = data_filtered2.copy()
+    data_filtered_ext2['Prediction'] = data_filtered_ext2['Close']
     # Print the tail of the dataframe
-    data_filtered_ext.tail()
-
+    #data_filtered_ext.tail()
     # Get the number of rows in the data
     nrows = data_filtered.shape[0]
-
     # Convert the data to numpy values
-    np_data_unscaled = np.array(data_filtered)
-    np_data = np.reshape(np_data_unscaled, (nrows, -1))
+    np_train_unscaled = np.array(data_filtered)
+    np_test_unscaled = np.array(data_filtered2)
+    np_data = np.reshape(np_train_unscaled, (nrows, -1))
     print(np_data.shape)
-
     # Transform the data by scaling each feature to a range between 0 and 1
     scaler = MinMaxScaler()
-    np_data_scaled = scaler.fit_transform(np_data_unscaled)
-
+    np_train_scaled = scaler.fit_transform(np_train_unscaled)
+    np_test_scaled = scaler.fit_transform(np_test_unscaled)
     # Creating a separate scaler that works on a single column for scaling predictions
     scaler_pred = MinMaxScaler()
+    #scaler_pred2 = MinMaxScaler()
     df_Close = pd.DataFrame(data_filtered_ext['Close'])
+    df_Close2 = pd.DataFrame(data_filtered_ext2['Close'])
     np_Close_scaled = scaler_pred.fit_transform(df_Close)
-
+    np_Close_scaled2 = scaler_pred.fit_transform(df_Close)
     # Set the sequence length - this is the timeframe used to make a single prediction
     sequence_length = 50
-    
     # Prediction Index
-    index_Close = data.columns.get_loc("Close")
-    
+    index_Close = train_df.columns.get_loc("Close")
     # Split the training data into train and train data sets
     # As a first step, we get the number of rows to train the model on 80% of the data 
-    train_data_len = math.ceil(np_data_scaled.shape[0] * 0.8)
-    
+    train_data_len = math.ceil(np_train_scaled.shape[0])# * 0.8)
     # Create the training and test data
-    train_data = np_data_scaled[0:train_data_len, :]
-    test_data = np_data_scaled[train_data_len - sequence_length:, :]
-    
+    train_data = np_train_scaled#[0:train_data_len, :]
+    test_data = np_test_scaled#[train_data_len - sequence_length:, :]
     # The RNN needs data with the format of [samples, time steps, features]
     # Here, we create N samples, sequence_length time steps per sample, and 6 features
     def partition_dataset(sequence_length, data):
@@ -261,39 +262,103 @@ def createModel(layer_num, layer_size, layer_name, dropout):
         for i in range(sequence_length, data_len):
             x.append(data[i-sequence_length:i,:]) #contains sequence_length values 0-sequence_length * columsn
             y.append(data[i, index_Close]) #contains the prediction values for validation,  for single-step prediction
-        
         # Convert the x and y to numpy arrays
         x = np.array(x)
         y = np.array(y)
         return x, y
-    
     # Generate training data and test data
     x_train, y_train = partition_dataset(sequence_length, train_data)
     x_test, y_test = partition_dataset(sequence_length, test_data)
-    
     # Print the shapes: the result is: (rows, training_sequence, features) (prediction value, )
     print(x_train.shape, y_train.shape)
     print(x_test.shape, y_test.shape)
-    
     # Validate that the prediction value and the input match up
     # The last close price of the second input sample should equal the first prediction value
     print(x_train[1][sequence_length-1][index_Close])
     print(y_train[0])
+    # Configure the neural network model
+    model = Sequential()
+    # Model with n_neurons = inputshape Timestamps, each with x_train.shape[2] variables
+    n_neurons = x_train.shape[1] * x_train.shape[2]
+    print(n_neurons, x_train.shape[1], x_train.shape[2])
+    model.add(LSTM(n_neurons, return_sequences=True, input_shape=(x_train.shape[1], x_train.shape[2]))) 
+    model.add(LSTM(n_neurons, return_sequences=False))
+    model.add(Dense(5))
+    model.add(Dense(1))
+    # Compile the model
+    model.compile(optimizer='adam', loss='mean_squared_error')
+    # Training the model
+    epochs = 10
+    batch_size = 32
+    early_stop = EarlyStopping(monitor='loss', patience=5, verbose=1)
+    history = model.fit(x_train, y_train, 
+                        batch_size=batch_size, 
+                        epochs=epochs,
+                        validation_data=(x_test, y_test)
+                       )
+                        #callbacks=[early_stop])
+    # Get the predicted values
+    y_pred_scaled = model.predict(x_test)
+    # Unscale the predicted values
+    y_pred = scaler_pred.inverse_transform(y_pred_scaled)
+    y_test_unscaled = scaler_pred.inverse_transform(y_test.reshape(-1, 1))
+    # The date from which on the date is displayed
+    display_start_date = "2019-01-01" 
+    # Add the difference between the valid and predicted prices
+    #train = pd.DataFrame(data_filtered_ext['Close'][:train_data_len + 1]).rename(columns={'Close': 'y_train'})
+    #valid = pd.DataFrame(data_filtered_ext['Close'][train_data_len:]).rename(columns={'Close': 'y_test'})
+    #valid.insert(1, "y_pred", y_pred, True)
+    #valid.insert(1, "residuals", valid["y_pred"] - valid["y_test"], True)
+    #df_union = pd.concat([train, valid])
+    ## Zoom in to a closer timeframe
+    #df_union_zoom = df_union[df_union.index > display_start_date]
+    ## Create the lineplot
+    #fig, ax1 = plt.subplots(figsize=(16, 8))
+    #plt.title("y_pred vs y_test")
+    #plt.ylabel(COMPANY, fontsize=18)
+    #sns.set_palette(["#090364", "#1960EF", "#EF5919"])
+    #sns.lineplot(data=df_union_zoom[['y_pred', 'y_train', 'y_test']], linewidth=1.0, dashes=False, ax=ax1)
+    ## Create the bar plot with the differences
+    #df_sub = ["#2BC97A" if x > 0 else "#C92B2B" for x in df_union_zoom["residuals"].dropna()]
+    #ax1.bar(height=df_union_zoom['residuals'].dropna(), x=df_union_zoom['residuals'].dropna().index, width=3, label='residuals', color=df_sub)
+    #plt.legend()
+    #plt.show()
+    #df_temp = trainData[-sequence_length:]
+    #new_df = df_temp.filter(FEATURE_COLUNMS)
+    #N = sequence_length
+    ## Get the last N day closing price values and scale the data to be values between 0 and 1
+    #last_N_days = new_df[-sequence_length:].values
+    #last_N_days_scaled = scaler.transform(last_N_days)
+    ## Create an empty list and Append past N days
+    #X_test_new = []
+    #X_test_new.append(last_N_days_scaled)
+    ## Convert the X_test data set to a numpy array and reshape the data
+    #pred_price_scaled = model.predict(np.array(X_test_new))
+    #pred_price_unscaled = scaler_pred.inverse_transform(pred_price_scaled.reshape(-1, 1))
+    ## Print last price and predicted price for the next day
+    #price_today = np.round(new_df['Close'][-1], 2)
+    #predicted_price = np.round(pred_price_unscaled.ravel()[0], 2)
+    #change_percent = np.round(100 - (price_today * 100)/predicted_price, 2)
+    #plus = '+'; minus = ''
+    #print(f'The close price for {COMPANY} at {TEST_END} was {price_today}')
+    #print(f'The predicted close price is {predicted_price} ({plus if change_percent > 0 else minus}{change_percent}%)')
+    #df_Close.to_csv("trainfilename.csv")
+    return y_pred
 
-    df_Close.to_csv("trainfilename.csv")
+def createModel(layer_num, layer_size, layer_name, dropout):
+    #Declare some variables so the model knows whats what
+    PRICE_VALUE = "Close"
+
+    
+
+
+    
+    
 
 
 
 
-
-
-
-
-
-
-
-
-    df_extract = trainData.filter([FEATURE_COLUNMS], axis=1)
+    #df_extract = trainData.filter([FEATURE_COLUNMS], axis=1)
 
     scaler = MinMaxScaler(feature_range=(0, 1)) 
     scaled_data = scaler.fit_transform(trainData[PRICE_VALUE].values.reshape(-1, 1)) 
@@ -345,6 +410,7 @@ def createModel(layer_num, layer_size, layer_name, dropout):
     return model
 
 def runTest():
+    multi_pred = multivariate_prediction()
     #createModel2(layer_num, layer_size, layer_name, dropout):
     model = createModel(LAYER_NUM, LAYER_SIZE, LAYER_NAME, DROPOUT)
 
@@ -360,6 +426,8 @@ def runTest():
     scaler = MinMaxScaler(feature_range=(0, 1)) 
 
     scaled_data = scaler.fit_transform(trainData[PRICE_VALUE].values.reshape(-1, 1)) 
+
+    
 
     #------------------------------------------------------------------------------
     # Test the model accuracy on existing data
@@ -500,14 +568,23 @@ def runTest():
     # 3) Show chart of next few days (predicted)
     #------------------------------------------------------------------------------
 
+    
+    #multi_pred.to_csv("data9.csv")
+    #print(multi_pred.columns)
+    #multi_pred.rename(columns={multi_pred.columns[1]: 'Close'},inplace=True)
+    #print(multi_pred.columns)
+    #multi_pred['Close'] = np.array(multi_pred)
+
     plt.plot(actual_prices, color="black", label=f"Actual {COMPANY} Price")
     plt.plot(predicted_prices, color="green", label=f"Predicted {COMPANY} Price")
     plt.plot(df_futurePrices, color="orange", label=f"Predicted {COMPANY} Future Price")
+    plt.plot(multi_pred, color="red", label=f"Predicted {COMPANY} multivariate Price")
     plt.title(f"{COMPANY} Share Price")
     plt.xlabel("Time")
     plt.ylabel(f"{COMPANY} Share Price")
     plt.legend()
     plt.show()
+
 
 
 

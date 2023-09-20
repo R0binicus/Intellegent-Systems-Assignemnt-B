@@ -18,7 +18,7 @@ TEST_END = '2023-06-30'         #End date of dataset    #Must be in 'YYYY-MM-DD'
 SPLIT_DATE = '2020-09-01'       #Split date of dataset    #Must be in 'YYYY-MM-DD' format eg '2020-09-01'
     # WARNING must be on 2020-09-01 or later otherwise i don't think there is enough data to predict properly
 
-PREDICTION_DAYS = 1             # Number of days into the future to predict the stock prices
+PREDICTION_DAYS = 30             # Number of days into the future to predict the stock prices
 
 LOOKBACK_DAYS = 60              #Number of days to look back to base the prediction
                                 # 60 Original
