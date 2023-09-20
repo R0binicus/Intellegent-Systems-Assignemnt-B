@@ -206,40 +206,31 @@ def getDataRatio(filename, ratio):
 
     # link: https://www.relataly.com/stock-market-prediction-using-multivariate-time-series-in-python/1815/
 
-def multivariate_prediction():
+def multivariate_prediction(layer_num, layer_size, layer_name):
     PREDICT_COLUNM = "Close"
     FEATURE_COLUNMS = ['Open','High','Low','Close','Adj Close','Volume']
-    print('FEATURE LIST')
-    print([f for f in FEATURE_COLUNMS])
-    #trainData.to_csv("trainfilename.csv")
-    #df = df.drop(df.columns[[0, 1, 3]], axis=1)
+
     train_df = trainData.sort_values(by=['Date']).copy()
     test_df = testData.sort_values(by=['Date']).copy()
-    #data = pd.DataFrame(train_df)
-    data2 = pd.DataFrame(test_df)
-    data_filtered = train_df#[FEATURE_COLUNMS]
+    data_filtered = train_df
     data_filtered2 = test_df
     # We add a prediction column and set dummy values to prepare the data for scaling
     data_filtered_ext = data_filtered.copy()
     data_filtered_ext['Prediction'] = data_filtered_ext['Close']
     data_filtered_ext2 = data_filtered2.copy()
     data_filtered_ext2['Prediction'] = data_filtered_ext2['Close']
-    # Print the tail of the dataframe
-    #data_filtered_ext.tail()
     # Get the number of rows in the data
     nrows = data_filtered.shape[0]
     # Convert the data to numpy values
     np_train_unscaled = np.array(data_filtered)
     np_test_unscaled = np.array(data_filtered2)
     np_data = np.reshape(np_train_unscaled, (nrows, -1))
-    #print(np_data.shape)
     # Transform the data by scaling each feature to a range between 0 and 1
     scaler = MinMaxScaler()
     np_train_scaled = scaler.fit_transform(np_train_unscaled)
     np_test_scaled = scaler.fit_transform(np_test_unscaled)
     # Creating a separate scaler that works on a single column for scaling predictions
     scaler_pred = MinMaxScaler()
-    #scaler_pred2 = MinMaxScaler()
     df_Close = pd.DataFrame(data_filtered_ext['Close'])
     df_Close2 = pd.DataFrame(data_filtered_ext2['Close'])
     np_Close_scaled = scaler_pred.fit_transform(df_Close)
@@ -248,12 +239,9 @@ def multivariate_prediction():
     sequence_length = 50
     # Prediction Index
     index_Close = train_df.columns.get_loc("Close")
-    # Split the training data into train and train data sets
-    # As a first step, we get the number of rows to train the model on 80% of the data 
-    #train_data_len = math.ceil(np_train_scaled.shape[0] * 0.8)
     # Create the training and test data
-    train_data = np_train_scaled#[0:train_data_len, :]
-    test_data = np_test_scaled#[train_data_len - sequence_length:, :]
+    train_data = np_train_scaled
+    test_data = np_test_scaled
     # The RNN needs data with the format of [samples, time steps, features]
     # Here, we create N samples, sequence_length time steps per sample, and 6 features
     def partition_dataset(sequence_length, data):
@@ -269,41 +257,44 @@ def multivariate_prediction():
     # Generate training data and test data
     x_train, y_train = partition_dataset(sequence_length, train_data)
     x_test, y_test = partition_dataset(sequence_length, test_data)
-    # Print the shapes: the result is: (rows, training_sequence, features) (prediction value, )
-    print(x_train.shape, y_train.shape)
-    print(x_test.shape, y_test.shape)
-    # Validate that the prediction value and the input match up
-    # The last close price of the second input sample should equal the first prediction value
-    print(x_train[1][sequence_length-1][index_Close])
-    print(y_train[0])
+
     # Configure the neural network model
     model = Sequential()
-    # Model with n_neurons = inputshape Timestamps, each with x_train.shape[2] variables
-    n_neurons = x_train.shape[1] * x_train.shape[2]
-    print(n_neurons, x_train.shape[1], x_train.shape[2])
-    model.add(LSTM(n_neurons, return_sequences=True, input_shape=(x_train.shape[1], x_train.shape[2]))) 
-    model.add(LSTM(n_neurons, return_sequences=False))
-    model.add(Dense(5))
+
+    #Add layers to network using for each loop, which takes the layer_num to determine how many layers are added
+    for i in range(layer_num):
+        if i == 0:
+            # first layer
+            model.add(layer_name(layer_size, return_sequences=True, input_shape=(x_train.shape[1], x_train.shape[2])))
+        elif i == layer_num - 1:
+            # last layer
+            model.add(layer_name(layer_size, return_sequences=False))
+        else:
+            # hidden layers
+            model.add(layer_name(layer_size, return_sequences=True))
+    
+    # Prediction of the next closing value of the stock price
     model.add(Dense(1))
     # Compile the model
     model.compile(optimizer='adam', loss='mean_squared_error')
     # Training the model
-    epochs = 10
-    batch_size = 32
     early_stop = EarlyStopping(monitor='loss', patience=5, verbose=1)
     history = model.fit(x_train, y_train, 
-                        batch_size=batch_size, 
-                        epochs=epochs,
+                        batch_size=32, 
+                        epochs=10,
                         validation_data=(x_test, y_test)
                        )
-                        #callbacks=[early_stop])
     # Get the predicted values
     y_pred_scaled = model.predict(x_test)
     # Unscale the predicted values
     y_pred = scaler_pred.inverse_transform(y_pred_scaled)
     y_test_unscaled = scaler_pred.inverse_transform(y_test.reshape(-1, 1))
-    # The date from which on the date is displayed
-    display_start_date = "2019-01-01" 
+    
+    return y_pred
+
+
+# The date from which on the date is displayed
+    #display_start_date = "2019-01-01" 
     # Add the difference between the valid and predicted prices
     #train = pd.DataFrame(data_filtered_ext['Close'][:train_data_len + 1]).rename(columns={'Close': 'y_train'})
     #valid = pd.DataFrame(data_filtered_ext['Close'][train_data_len:]).rename(columns={'Close': 'y_test'})
@@ -343,7 +334,6 @@ def multivariate_prediction():
     #print(f'The close price for {COMPANY} at {TEST_END} was {price_today}')
     #print(f'The predicted close price is {predicted_price} ({plus if change_percent > 0 else minus}{change_percent}%)')
     #df_Close.to_csv("trainfilename.csv")
-    return y_pred
 
 def createModel(layer_num, layer_size, layer_name, dropout):
     #Declare some variables so the model knows whats what
@@ -400,7 +390,7 @@ def createModel(layer_num, layer_size, layer_name, dropout):
     
     # Prediction of the next closing value of the stock price
     model.add(Dense(units=1)) 
-
+    # Compile the model
     model.compile(optimizer='adam', loss='mean_squared_error')
     # Now we are going to train this model with our training data 
     # (x_train, y_train)
@@ -410,7 +400,7 @@ def createModel(layer_num, layer_size, layer_name, dropout):
     return model
 
 def runTest():
-    multi_pred = multivariate_prediction()
+    multi_pred = multivariate_prediction(LAYER_NUM, LAYER_SIZE, LAYER_NAME)
     #createModel2(layer_num, layer_size, layer_name, dropout):
     model = createModel(LAYER_NUM, LAYER_SIZE, LAYER_NAME, DROPOUT)
 
@@ -666,139 +656,4 @@ def Main(): #Main function for deciding which split method was chosen
             runTest()
 
 Main()
-
-
-def createModel2():
-    # For more details: 
-    # https://pandas.pydata.org/pandas-docs/stable/user_guide/dsintro.html
-    #------------------------------------------------------------------------------
-    # Prepare Data
-    ## To do:
-    # 1) Check if data has been prepared before. 
-    # If so, load the saved data
-    # If not, save the data into a directory
-    # 2) Use a different price value eg. mid-point of Open & Close
-    # 3) Change the Prediction days
-    #------------------------------------------------------------------------------
-    PRICE_VALUE = "Close"
-
-    scaler = MinMaxScaler(feature_range=(0, 1)) 
-    # Note that, by default, feature_range=(0, 1). Thus, if you want a different 
-    # feature_range (min,max) then you'll need to specify it here
-    scaled_data = scaler.fit_transform(trainData[PRICE_VALUE].values.reshape(-1, 1)) 
-    # Flatten and normalise the data
-    # First, we reshape a 1D array(n) to 2D array(n,1)
-    # We have to do that because sklearn.preprocessing.fit_transform()
-    # requires a 2D array
-    # Here n == len(scaled_data)
-    # Then, we scale the whole array to the range (0,1)
-    # The parameter -1 allows (np.)reshape to figure out the array size n automatically 
-    # values.reshape(-1, 1) 
-    # https://stackoverflow.com/questions/18691084/what-does-1-mean-in-numpy-reshape'
-    # When reshaping an array, the new shape must contain the same number of elements 
-    # as the old shape, meaning the products of the two shapes' dimensions must be equal. 
-    # When using a -1, the dimension corresponding to the -1 will be the product of 
-    # the dimensions of the original array divided by the product of the dimensions 
-    # given to reshape so as to maintain the same number of elements.
-
-    # To store the training data
-    x_train = []
-    y_train = []
-
-    scaled_data = scaled_data[:,0] # Turn the 2D array back to a 1D array
-    # Prepare the data
-    for x in range(LOOKBACK_DAYS, len(scaled_data)):
-        x_train.append(scaled_data[x-LOOKBACK_DAYS:x])
-        y_train.append(scaled_data[x])
-
-    # Convert them into an array
-    x_train, y_train = np.array(x_train), np.array(y_train)
-    # Now, x_train is a 2D array(p,q) where p = len(scaled_data) - LOOKBACK_DAYS
-    # and q = LOOKBACK_DAYS; while y_train is a 1D array(p)
-
-    x_train = np.reshape(x_train, (x_train.shape[0], x_train.shape[1], 1))
-    # We now reshape x_train into a 3D array(p, q, 1); Note that x_train 
-    # is an array of p inputs with each input being a 2D array 
-
-    #------------------------------------------------------------------------------
-    # Build the Model
-    ## TO DO:
-    # 1) Check if data has been built before. 
-    # If so, load the saved data
-    # If not, save the data into a directory
-    # 2) Change the model to increase accuracy?
-    #------------------------------------------------------------------------------
-    model = Sequential() # Basic neural network
-    # See: https://www.tensorflow.org/api_docs/python/tf/keras/Sequential
-    # for some useful examples
-
-    model.add(LSTM(units=50, return_sequences=True, input_shape=(x_train.shape[1], 1)))
-    # This is our first hidden layer which also spcifies an input layer. 
-    # That's why we specify the input shape for this layer; 
-    # i.e. the format of each training example
-    # The above would be equivalent to the following two lines of code:
-    # model.add(InputLayer(input_shape=(x_train.shape[1], 1)))
-    # model.add(LSTM(units=50, return_sequences=True))
-    # For some advances explanation of return_sequences:
-    # https://machinelearningmastery.com/return-sequences-and-return-states-for-lstms-in-keras/
-    # https://www.dlology.com/blog/how-to-use-return_state-or-return_sequences-in-keras/
-    # As explained there, for a stacked LSTM, you must set return_sequences=True 
-    # when stacking LSTM layers so that the next LSTM layer has a 
-    # three-dimensional sequence input. 
-
-    # Finally, units specifies the number of nodes in this layer.
-    # This is one of the parameters you want to play with to see what number
-    # of units will give you better prediction quality (for your problem)
-
-    model.add(Dropout(0.2))
-    # The Dropout layer randomly sets input units to 0 with a frequency of 
-    # rate (= 0.2 above) at each step during training time, which helps 
-    # prevent overfitting (one of the major problems of ML). 
-
-    model.add(LSTM(units=50, return_sequences=True))
-    # More on Stacked LSTM:
-    # https://machinelearningmastery.com/stacked-long-short-term-memory-networks/
-
-    model.add(Dropout(0.2))
-    model.add(LSTM(units=50))
-    model.add(Dropout(0.2))
-
-    model.add(Dense(units=1)) 
-    # Prediction of the next closing value of the stock price
-
-    # We compile the model by specify the parameters for the model
-    # See lecture Week 6 (COS30018)
-    model.compile(optimizer='adam', loss='mean_squared_error')
-    # The optimizer and loss are two important parameters when building an 
-    # ANN model. Choosing a different optimizer/loss can affect the prediction
-    # quality significantly. You should try other settings to learn; e.g.
-
-    # optimizer='rmsprop'/'sgd'/'adadelta'/...
-    # loss='mean_absolute_error'/'huber_loss'/'cosine_similarity'/...
-
-    # Now we are going to train this model with our training data 
-    # (x_train, y_train)
-    model.fit(x_train, y_train, epochs=25, batch_size=32)
-
-    return model
-    # Other parameters to consider: How many rounds(epochs) are we going to 
-    # train our model? Typically, the more the better, but be careful about
-    # overfitting!
-    # What about batch_size? Well, again, please refer to 
-    # Lecture Week 6 (COS30018): If you update your model for each and every 
-    # input sample, then there are potentially 2 issues: 1. If you training 
-    # data is very big (billions of input samples) then it will take VERY long;
-    # 2. Each and every input can immediately makes changes to your model
-    # (a souce of overfitting). Thus, we do this in batches: We'll look at
-    # the aggreated errors/losses from a batch of, say, 32 input samples
-    # and update our model based on this aggregated loss.
-
-    # TO DO:
-    # Save the model and reload it
-    # Sometimes, it takes a lot of effort to train your model (again, look at
-    # a training data with billions of input samples). Thus, after spending so 
-    # much computing power to train your model, you may want to save it so that
-    # in the future, when you want to make the prediction, you only need to load
-    # your pre-trained model and run it on the new input for which the prediction
-    # need to be made.
     
