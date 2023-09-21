@@ -35,12 +35,13 @@ MODE = 2
 # 4 = Make boxplot chart of data from past NDAYS
 # Other = Split dataset into train/test sets randomly, then predict
 
-NDAYS = 30                      # Set how many days to make a chart from
-
 STOREFILE = True                # Pick whether to store file or not
 
-SCALER = True                   # Pick whether to scale feature colunms or not
+NDAYS = 30                      # Set how many days in the future to make a predictions in the future
 
+MULTIVARIATE = True                   # Pick whether to predict and display Multivariate data in additional to other
+
+SCALER = True                   # Pick whether to predict and display Multivariate data in additional to other
 
 #
 #
@@ -92,6 +93,3 @@ match HYPERPARAM:
         LAYER_SIZE = 50
         LAYER_NAME = SimpleRNN
         DROPOUT = 0.2
-
-
-

@@ -33,16 +33,6 @@ from keras.models import Sequential
 from keras.layers import Dense, Dropout, LSTM, InputLayer, SimpleRNN, GRU
 from keras.callbacks import EarlyStopping
 
-
-
-# To Remove
-
-import seaborn as sns # Visualization
-sns.set_style('white', { 'axes.spines.right': False, 'axes.spines.top': False})
-
-
-# new
-
 import matplotlib
 import os
 from os.path import exists
@@ -193,17 +183,6 @@ def getDataRatio(filename, ratio):
     #trainData.to_csv("trainfilename.csv")
     #testData.to_csv("testfilename.csv")        #test that the data is split correctly
 
-    # construct the model
-    # model = create_model(N_STEPS, len(FEATURE_COLUMNS), units=UNITS, cell=CELL, n_layers=N_LAYERS, dropout=DROPOUT, 
-    #                 loss=LOSS,  optimizer=OPTIMIZER, bidirectional=BIDIRECTIONAL)
-
-    #(sequence_length, n_features, units=256, cell=LSTM, n_layers=2, dropout=0.3,
-    #            loss="mean_absolute_error", optimizer="rmsprop", bidirectional=False):
-
-    #(LOOKBACK_DAYS, n_features, units=50, cell=LSTM, n_layers=2, dropout=0.2,
-    #            loss="mean_squared_error", optimizer="adam", bidirectional=False):
-
-
     # link: https://www.relataly.com/stock-market-prediction-using-multivariate-time-series-in-python/1815/
 
 def multivariate_prediction(layer_num, layer_size, layer_name):
@@ -236,27 +215,26 @@ def multivariate_prediction(layer_num, layer_size, layer_name):
     np_Close_scaled = scaler_pred.fit_transform(df_Close)
     np_Close_scaled2 = scaler_pred.fit_transform(df_Close2)
     # Set the sequence length - this is the timeframe used to make a single prediction
-    sequence_length = 50
     # Prediction Index
     index_Close = train_df.columns.get_loc("Close")
     # Create the training and test data
     train_data = np_train_scaled
     test_data = np_test_scaled
     # The RNN needs data with the format of [samples, time steps, features]
-    # Here, we create N samples, sequence_length time steps per sample, and 6 features
-    def partition_dataset(sequence_length, data):
+    # Here, we create N samples, LOOKBACK_DAYS time steps per sample, and 6 features
+    def partition_dataset(LOOKBACK_DAYS, data):
         x, y = [], []
         data_len = data.shape[0]
-        for i in range(sequence_length, data_len):
-            x.append(data[i-sequence_length:i,:]) #contains sequence_length values 0-sequence_length * columsn
+        for i in range(LOOKBACK_DAYS, data_len):
+            x.append(data[i-LOOKBACK_DAYS:i,:]) #contains LOOKBACK_DAYS values 0-LOOKBACK_DAYS * colunms
             y.append(data[i, index_Close]) #contains the prediction values for validation,  for single-step prediction
         # Convert the x and y to numpy arrays
         x = np.array(x)
         y = np.array(y)
         return x, y
     # Generate training data and test data
-    x_train, y_train = partition_dataset(sequence_length, train_data)
-    x_test, y_test = partition_dataset(sequence_length, test_data)
+    x_train, y_train = partition_dataset(LOOKBACK_DAYS, train_data)
+    x_test, y_test = partition_dataset(LOOKBACK_DAYS, test_data)
 
     # Configure the neural network model
     model = Sequential()
@@ -292,68 +270,13 @@ def multivariate_prediction(layer_num, layer_size, layer_name):
     
     return y_pred
 
-
-# The date from which on the date is displayed
-    #display_start_date = "2019-01-01" 
-    # Add the difference between the valid and predicted prices
-    #train = pd.DataFrame(data_filtered_ext['Close'][:train_data_len + 1]).rename(columns={'Close': 'y_train'})
-    #valid = pd.DataFrame(data_filtered_ext['Close'][train_data_len:]).rename(columns={'Close': 'y_test'})
-    #valid.insert(1, "y_pred", y_pred, True)
-    #valid.insert(1, "residuals", valid["y_pred"] - valid["y_test"], True)
-    #df_union = pd.concat([train, valid])
-    ## Zoom in to a closer timeframe
-    #df_union_zoom = df_union[df_union.index > display_start_date]
-    ## Create the lineplot
-    #fig, ax1 = plt.subplots(figsize=(16, 8))
-    #plt.title("y_pred vs y_test")
-    #plt.ylabel(COMPANY, fontsize=18)
-    #sns.set_palette(["#090364", "#1960EF", "#EF5919"])
-    #sns.lineplot(data=df_union_zoom[['y_pred', 'y_train', 'y_test']], linewidth=1.0, dashes=False, ax=ax1)
-    ## Create the bar plot with the differences
-    #df_sub = ["#2BC97A" if x > 0 else "#C92B2B" for x in df_union_zoom["residuals"].dropna()]
-    #ax1.bar(height=df_union_zoom['residuals'].dropna(), x=df_union_zoom['residuals'].dropna().index, width=3, label='residuals', color=df_sub)
-    #plt.legend()
-    #plt.show()
-    #df_temp = trainData[-sequence_length:]
-    #new_df = df_temp.filter(FEATURE_COLUNMS)
-    #N = sequence_length
-    ## Get the last N day closing price values and scale the data to be values between 0 and 1
-    #last_N_days = new_df[-sequence_length:].values
-    #last_N_days_scaled = scaler.transform(last_N_days)
-    ## Create an empty list and Append past N days
-    #X_test_new = []
-    #X_test_new.append(last_N_days_scaled)
-    ## Convert the X_test data set to a numpy array and reshape the data
-    #pred_price_scaled = model.predict(np.array(X_test_new))
-    #pred_price_unscaled = scaler_pred.inverse_transform(pred_price_scaled.reshape(-1, 1))
-    ## Print last price and predicted price for the next day
-    #price_today = np.round(new_df['Close'][-1], 2)
-    #predicted_price = np.round(pred_price_unscaled.ravel()[0], 2)
-    #change_percent = np.round(100 - (price_today * 100)/predicted_price, 2)
-    #plus = '+'; minus = ''
-    #print(f'The close price for {COMPANY} at {TEST_END} was {price_today}')
-    #print(f'The predicted close price is {predicted_price} ({plus if change_percent > 0 else minus}{change_percent}%)')
-    #df_Close.to_csv("trainfilename.csv")
-
 def createModel(layer_num, layer_size, layer_name, dropout):
     #Declare some variables so the model knows whats what
     PRICE_VALUE = "Close"
 
-    
-
-
-    
-    
-
-
-
-
-    #df_extract = trainData.filter([FEATURE_COLUNMS], axis=1)
 
     scaler = MinMaxScaler(feature_range=(0, 1)) 
     scaled_data = scaler.fit_transform(trainData[PRICE_VALUE].values.reshape(-1, 1)) 
-    #DF = pd.DataFrame(scaled_data)
-    #DF.to_csv("scaled_data.csv")
 
     # To store the training data
     x_train = []
@@ -400,7 +323,9 @@ def createModel(layer_num, layer_size, layer_name, dropout):
     return model
 
 def runTest():
-    multi_pred = multivariate_prediction(LAYER_NUM, LAYER_SIZE, LAYER_NAME)
+    if MULTIVARIATE:
+        multi_pred = multivariate_prediction(LAYER_NUM, LAYER_SIZE, LAYER_NAME)
+    
     #createModel2(layer_num, layer_size, layer_name, dropout):
     model = createModel(LAYER_NUM, LAYER_SIZE, LAYER_NAME, DROPOUT)
 
@@ -410,8 +335,6 @@ def runTest():
     PRICE_VALUE = "Close"
 
     PREDICT_COLUNM = "Close"
-
-    FEATURE_COLUNMS = "Open", "High", "Low", "Close", "Adj Close", "Volume"
 
     scaler = MinMaxScaler(feature_range=(0, 1)) 
 
@@ -473,8 +396,7 @@ def runTest():
     # TO DO: Explain the above 5 lines
 
     predicted_prices = model.predict(x_test)
-    if (SCALER):
-        predicted_prices = scaler.inverse_transform(predicted_prices)
+    predicted_prices = scaler.inverse_transform(predicted_prices)
     # Clearly, as we transform our data into the normalized range (0,1),
     # we now need to reverse this transformation 
 
@@ -487,6 +409,7 @@ def runTest():
 
     i = 0
  
+    # for each day in the future to predict
     while i < PREDICTION_DAYS:
         i += 1
 
@@ -502,7 +425,7 @@ def runTest():
 
         prediction = prediction.flatten()[0]
 
-        print(futurePrice)
+        #print(futurePrice)
 
         model_inputs = pd.DataFrame(model_inputs)
         model_inputs.loc['0'] = prediction
@@ -516,7 +439,7 @@ def runTest():
 
         # make it unscales prediction data
 
-        # make it so it redoes the declaromg of real_data
+        # make it so it redoes the declaring of real_data
  
         # make it so it adds to real_data
 
@@ -526,11 +449,21 @@ def runTest():
 
     #LINK https://stackoverflow.com/questions/69785891/how-to-use-the-lstm-model-for-multi-step-forecasting/69787683#69787683
 
+    # Make it so the future predicted days appear after the test data
+
     df_futurePrices = pd.DataFrame(columns=['Index','Forecast'])
     DF = pd.DataFrame(predicted_prices)
     df_futurePrices['Index'] = range(DF.index[-1] + 1, DF.index[-1] + 1 + PREDICTION_DAYS)
     df_futurePrices = df_futurePrices.set_index("Index")
     df_futurePrices['Forecast'] = np.array(futurePrice)
+
+    # Add LOOKBACK_DAYS to the start of the multivatiate so it's start on the chart is delayed
+    if MULTIVARIATE:
+        df_multiPrices = pd.DataFrame(columns=['Index','Close'])
+        DF2 = pd.DataFrame(multi_pred)
+        df_multiPrices['Index'] = range(LOOKBACK_DAYS, DF2.index[-1] + 1 + LOOKBACK_DAYS)
+        df_multiPrices = df_multiPrices.set_index("Index")
+        df_multiPrices['Close'] = np.array(multi_pred)
 
     #DF = pd.DataFrame(df_futurePrices)
     #DF.to_csv("data9.csv")
@@ -558,17 +491,11 @@ def runTest():
     # 3) Show chart of next few days (predicted)
     #------------------------------------------------------------------------------
 
-    
-    #multi_pred.to_csv("data9.csv")
-    #print(multi_pred.columns)
-    #multi_pred.rename(columns={multi_pred.columns[1]: 'Close'},inplace=True)
-    #print(multi_pred.columns)
-    #multi_pred['Close'] = np.array(multi_pred)
-
     plt.plot(actual_prices, color="black", label=f"Actual {COMPANY} Price")
     plt.plot(predicted_prices, color="green", label=f"Predicted {COMPANY} Price")
     plt.plot(df_futurePrices, color="orange", label=f"Predicted {COMPANY} Future Price")
-    plt.plot(multi_pred, color="red", label=f"Predicted {COMPANY} multivariate Price")
+    if MULTIVARIATE: # Display Multivariate data if it is enabled
+        plt.plot(df_multiPrices, color="red", label=f"Predicted {COMPANY} multivariate Price")
     plt.title(f"{COMPANY} Share Price")
     plt.xlabel("Time")
     plt.ylabel(f"{COMPANY} Share Price")
