@@ -189,20 +189,19 @@ def multivariate_prediction(layer_num, layer_size, layer_name):
     PREDICT_COLUNM = "Close"
     FEATURE_COLUNMS = ['Open','High','Low','Close','Adj Close','Volume']
 
+    # make a copy of the train and test dataframes
     train_df = trainData.sort_values(by=['Date']).copy()
     test_df = testData.sort_values(by=['Date']).copy()
-    data_filtered = train_df
-    data_filtered2 = test_df
-    # We add a prediction column and set dummy values to prepare the data for scaling
-    data_filtered_ext = data_filtered.copy()
-    data_filtered_ext['Prediction'] = data_filtered_ext['Close']
-    data_filtered_ext2 = data_filtered2.copy()
-    data_filtered_ext2['Prediction'] = data_filtered_ext2['Close']
+    # Add dummy column and set dummy values for sacling in the future
+    train_df_ext = train_df.copy()
+    train_df_ext['Dummy'] = train_df_ext['Close']
+    test_df_ext = test_df.copy()
+    test_df_ext['Dummy'] = test_df_ext['Close']
     # Get the number of rows in the data
-    nrows = data_filtered.shape[0]
+    nrows = train_df.shape[0]
     # Convert the data to numpy values
-    np_train_unscaled = np.array(data_filtered)
-    np_test_unscaled = np.array(data_filtered2)
+    np_train_unscaled = np.array(train_df)
+    np_test_unscaled = np.array(test_df)
     np_data = np.reshape(np_train_unscaled, (nrows, -1))
     # Transform the data by scaling each feature to a range between 0 and 1
     scaler = MinMaxScaler()
@@ -210,17 +209,15 @@ def multivariate_prediction(layer_num, layer_size, layer_name):
     np_test_scaled = scaler.fit_transform(np_test_unscaled)
     # Creating a separate scaler that works on a single column for scaling predictions
     scaler_pred = MinMaxScaler()
-    df_Close = pd.DataFrame(data_filtered_ext['Close'])
-    df_Close2 = pd.DataFrame(data_filtered_ext2['Close'])
+    df_Close = pd.DataFrame(train_df_ext['Close'])
+    df_Close2 = pd.DataFrame(test_df_ext['Close'])
     np_Close_scaled = scaler_pred.fit_transform(df_Close)
     np_Close_scaled2 = scaler_pred.fit_transform(df_Close2)
-    # Set the sequence length - this is the timeframe used to make a single prediction
-    # Prediction Index
+    # Set Prediction Index
     index_Close = train_df.columns.get_loc("Close")
     # Create the training and test data
     train_data = np_train_scaled
     test_data = np_test_scaled
-    # The RNN needs data with the format of [samples, time steps, features]
     # Here, we create N samples, LOOKBACK_DAYS time steps per sample, and 6 features
     def partition_dataset(LOOKBACK_DAYS, data):
         x, y = [], []
@@ -228,7 +225,7 @@ def multivariate_prediction(layer_num, layer_size, layer_name):
         for i in range(LOOKBACK_DAYS, data_len):
             x.append(data[i-LOOKBACK_DAYS:i,:]) #contains LOOKBACK_DAYS values 0-LOOKBACK_DAYS * colunms
             y.append(data[i, index_Close]) #contains the prediction values for validation,  for single-step prediction
-        # Convert the x and y to numpy arrays
+        # Convert x and y to numpy arrays
         x = np.array(x)
         y = np.array(y)
         return x, y
@@ -257,11 +254,7 @@ def multivariate_prediction(layer_num, layer_size, layer_name):
     model.compile(optimizer='adam', loss='mean_squared_error')
     # Training the model
     early_stop = EarlyStopping(monitor='loss', patience=5, verbose=1)
-    history = model.fit(x_train, y_train, 
-                        batch_size=32, 
-                        epochs=10,
-                        validation_data=(x_test, y_test)
-                       )
+    history = model.fit(x_train, y_train, batch_size=32, epochs=10, validation_data=(x_test, y_test))
     # Get the predicted values
     y_pred_scaled = model.predict(x_test)
     # Unscale the predicted values
@@ -345,15 +338,6 @@ def runTest():
     #------------------------------------------------------------------------------
     # Test the model accuracy on existing data
     #------------------------------------------------------------------------------
-    # Load the test data
-    #TEST_START = '2020-01-02'
-    #TEST_END = '2022-12-31'
-
-    #test_data = yf.download(COMPANY, start=TRAIN_START, end=TRAIN_END, progress=False)
-    #
-    #test_data_filename = os.path.join("data", f"{COMPANY}_{TRAIN_START}_{TRAIN_END}.csv")
-    #
-    #testData = checkFiles(test_data_filename)
 
     # The above bug is the reason for the following line of code
     testData = testData[1:]
@@ -413,44 +397,31 @@ def runTest():
     while i < PREDICTION_DAYS:
         i += 1
 
+        # make it so it does (or redoes) the declaring of real_data based on the last PREDICTION_DAYS amount of days
         real_data = [model_inputs[len(model_inputs) - PREDICTION_DAYS:, 0]]
         real_data = np.array(real_data)
         real_data = np.reshape(real_data, (real_data.shape[0], real_data.shape[1], 1))
  
+        # make prediction of next day
         prediction = model.predict(real_data)
 
+        # unscale and flatten prediction data
         scaledPrdiction = scaler.inverse_transform(prediction)
 
+        # add predicted data to future price
         futurePrice.append(scaledPrdiction.flatten()[0])
 
+        # set prediction to be the flattened but still scaled data
         prediction = prediction.flatten()[0]
 
-        #print(futurePrice)
+        print(futurePrice)
 
+        # set model inputs to be dataframe, add predicted data to it, then make it a numpy array again
         model_inputs = pd.DataFrame(model_inputs)
         model_inputs.loc['0'] = prediction
         model_inputs = model_inputs.to_numpy()
 
-        
-
-
-
-
-
-        # make it unscales prediction data
-
-        # make it so it redoes the declaring of real_data
- 
-        # make it so it adds to real_data
-
-        # male it so it rescales the real_data
-
-        #futurePrice.append()
-
-    #LINK https://stackoverflow.com/questions/69785891/how-to-use-the-lstm-model-for-multi-step-forecasting/69787683#69787683
-
     # Make it so the future predicted days appear after the test data
-
     df_futurePrices = pd.DataFrame(columns=['Index','Forecast'])
     DF = pd.DataFrame(predicted_prices)
     df_futurePrices['Index'] = range(DF.index[-1] + 1, DF.index[-1] + 1 + PREDICTION_DAYS)
