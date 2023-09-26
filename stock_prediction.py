@@ -16,7 +16,7 @@
 # pip install pandas-datareader
 # pip install yfinance
 
-import math
+
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -28,6 +28,7 @@ import yfinance as yf
 from sklearn import preprocessing
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error
 from tensorflow import keras
 from keras.models import Sequential
 from keras.layers import Dense, Dropout, LSTM, InputLayer, SimpleRNN, GRU
@@ -43,6 +44,19 @@ from datetime import datetime
 import random
 from parameters import *
 import mplfinance as mpl 
+from statsmodels.tsa.arima.model import ARIMA
+from math import sqrt
+
+
+
+# Temporary
+from sklearn.ensemble import VotingClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.svm import SVC
+from sklearn.datasets import make_classification
+from sklearn.model_selection import train_test_split
+from keras.models import load_model
 
 
 # Train and test data global variables for setting
@@ -185,6 +199,61 @@ def getDataRatio(filename, ratio):
 
     # link: https://www.relataly.com/stock-market-prediction-using-multivariate-time-series-in-python/1815/
 
+def ARIMA_prediction():
+
+    series = trainData
+    # split into train and test sets
+    X = series['Close'].values
+    size = int(len(X) * 0.66)
+    train, test = X[0:size], X[size:len(X)]
+    history = [x for x in train]
+    predictions = list()
+    model = ARIMA(history, order=(5,1,0))
+
+    # walk-forward validation
+    for t in range(len(test)):
+     model = ARIMA(history, order=(5,1,0))
+     model_fit = model.fit()
+     output = model_fit.forecast()
+     yhat = output[0]
+     predictions.append(yhat)
+     obs = test[t]
+     history.append(obs)
+     print('predicted=%f, expected=%f' % (yhat, obs))
+    # evaluate forecasts
+    rmse = sqrt(mean_squared_error(test, predictions))
+    print('Test RMSE: %.3f' % rmse)
+    # plot forecasts against actual outcomes
+    plt.plot(test)
+    plt.plot(predictions, color='red')
+    plt.show()
+
+    return model
+
+
+    #LINK https://machinelearningmastery.com/arima-for-time-series-forecasting-with-python/
+
+def SARIMA_prediction(modela, modelb):
+
+    modela.save("m1.tf")
+    modelb.save("m1.tf")
+
+    model1 = load_model('m1.tf')
+    model2 = load_model('m2.tf')
+
+    #Initiating the usage of individual models
+    keras_model = keras.models.load_model('m1.tf', compile=False) 
+    keras_model._name = 'model1'
+    keras_model2 = keras.models.load_model('m2.tf', compile=False) 
+    keras_model2._name = 'model2'
+    models = [keras_model, keras_model2] #stacking individual models in a list
+    model_input = tf.keras.Input(shape=(124, 124, 1)) #takes a list of tensors as input, all of the same shape
+    model_outputs = [model(model_input) for model in models] #collects outputs of models in a list
+    ensemble_output = tf.keras.layers.Average()(model_outputs) #averaging outputs
+    ensemble_model = tf.keras.Model(inputs=model_input, outputs=ensemble_output)
+    ensemble_model.summary() #prints a comprehensive summary of the Keras model
+
+
 def multivariate_prediction(layer_num, layer_size, layer_name):
     PREDICT_COLUNM = "Close"
     FEATURE_COLUNMS = ['Open','High','Low','Close','Adj Close','Volume']
@@ -316,6 +385,10 @@ def createModel(layer_num, layer_size, layer_name, dropout):
     return model
 
 def runTest():
+    #SARIMA_prediction()
+    model1 = ARIMA_prediction()
+    model2 = ARIMA_prediction()
+    SARIMA_prediction(model1, model2)
     if MULTIVARIATE:
         multi_pred = multivariate_prediction(LAYER_NUM, LAYER_SIZE, LAYER_NAME)
     
@@ -473,15 +546,7 @@ def runTest():
     plt.legend()
     plt.show()
 
-
-
-
     #candlestickChart()
-
-    
-
-
-
 
 
 def candlestickChart(filename):
