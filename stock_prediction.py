@@ -224,29 +224,33 @@ def ARIMA_prediction():
     rmse = sqrt(mean_squared_error(test, predictions))
     print('Test RMSE: %.3f' % rmse)
     # plot forecasts against actual outcomes
-    plt.plot(test)
-    plt.plot(predictions, color='red')
-    plt.show()
-
-    return model
+    #plt.plot(test)
+    #plt.plot(predictions, color='red')
+    #plt.show()
+    model_fit = model.fit()
+    return model_fit
 
 
     #LINK https://machinelearningmastery.com/arima-for-time-series-forecasting-with-python/
 
+
+    #LINK https://medium.com/@cortexmoldova/arima-time-series-forecasting-model-with-python-5b0cfdbb08fa
+    # Maybe use this one
+
 def SARIMA_prediction(modela, modelb):
 
-    modela.save("m1.tf")
-    modelb.save("m1.tf")
-
-    model1 = load_model('m1.tf')
-    model2 = load_model('m2.tf')
-
-    #Initiating the usage of individual models
-    keras_model = keras.models.load_model('m1.tf', compile=False) 
-    keras_model._name = 'model1'
-    keras_model2 = keras.models.load_model('m2.tf', compile=False) 
-    keras_model2._name = 'model2'
-    models = [keras_model, keras_model2] #stacking individual models in a list
+    #modela.save("m1.tf")
+    #modelb.save("m2.tf")
+#
+    #model1 = load_model('m1.tf')
+    #model2 = load_model('m2.tf')
+#
+    ##Initiating the usage of individual models
+    #keras_model = keras.models.load_model('m1.tf', compile=False) 
+    #keras_model._name = 'model1'
+    #keras_model2 = keras.models.load_model('m2.tf', compile=False) 
+    #keras_model2._name = 'model2'
+    models = [modela, modelb] #stacking individual models in a list
     model_input = tf.keras.Input(shape=(124, 124, 1)) #takes a list of tensors as input, all of the same shape
     model_outputs = [model(model_input) for model in models] #collects outputs of models in a list
     ensemble_output = tf.keras.layers.Average()(model_outputs) #averaging outputs
@@ -387,7 +391,7 @@ def createModel(layer_num, layer_size, layer_name, dropout):
 def runTest():
     #SARIMA_prediction()
     model1 = ARIMA_prediction()
-    model2 = ARIMA_prediction()
+    model2 = model1
     SARIMA_prediction(model1, model2)
     if MULTIVARIATE:
         multi_pred = multivariate_prediction(LAYER_NUM, LAYER_SIZE, LAYER_NAME)
