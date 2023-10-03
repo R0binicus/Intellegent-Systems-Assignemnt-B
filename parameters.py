@@ -18,7 +18,7 @@ TEST_END = '2023-06-30'         #End date of dataset    #Must be in 'YYYY-MM-DD'
 SPLIT_DATE = '2020-09-01'       #Split date of dataset    #Must be in 'YYYY-MM-DD' format eg '2020-09-01'
     # WARNING must be on 2020-09-01 or later otherwise i don't think there is enough data to predict properly
 
-PREDICTION_DAYS = 30             # Number of days into the future to predict the stock prices
+PREDICTION_DAYS = 1             # Number of days into the future to predict the stock prices
 
 LOOKBACK_DAYS = 60              #Number of days to look back to base the prediction
                                 # 60 Original
@@ -39,7 +39,9 @@ STOREFILE = True                # Pick whether to store file or not
 
 NDAYS = 30                      # Set how many days in the future to make a predictions in the future
 
-MULTIVARIATE = True                   # Pick whether to predict and display Multivariate data in additional to other
+MULTIVARIATE = False            # Pick whether to predict and display Multivariate data in additional to other
+
+ENSEMBLE = True                 # Pick whether to use ensemble with arima or not
 
 SCALER = True                   # Pick whether to predict and display Multivariate data in additional to other
 

@@ -201,11 +201,18 @@ def getDataRatio(filename, ratio):
 
 def ARIMA_prediction():
 
-    series = trainData
+    #series = trainData
     # split into train and test sets
-    X = series['Close'].values
-    size = int(len(X) * 0.66)
-    train, test = X[0:size], X[size:len(X)]
+    #X = series['Close'].values
+    #size = int(len(X) * 0.66)
+    #train, test = X[0:size], X[size:len(X)]
+    train = trainData['Close'].values
+
+    test1 = testData[1:]
+    test = test1['Close'].values
+
+    
+    
     history = [x for x in train]
     predictions = list()
     model = ARIMA(history, order=(5,1,0))
@@ -220,15 +227,7 @@ def ARIMA_prediction():
      obs = test[t]
      history.append(obs)
      print('predicted=%f, expected=%f' % (yhat, obs))
-    # evaluate forecasts
-    rmse = sqrt(mean_squared_error(test, predictions))
-    print('Test RMSE: %.3f' % rmse)
-    # plot forecasts against actual outcomes
-    #plt.plot(test)
-    #plt.plot(predictions, color='red')
-    #plt.show()
-    model_fit = model.fit()
-    return model_fit
+    return predictions
 
 
     #LINK https://machinelearningmastery.com/arima-for-time-series-forecasting-with-python/
@@ -236,26 +235,6 @@ def ARIMA_prediction():
 
     #LINK https://medium.com/@cortexmoldova/arima-time-series-forecasting-model-with-python-5b0cfdbb08fa
     # Maybe use this one
-
-def SARIMA_prediction(modela, modelb):
-
-    #modela.save("m1.tf")
-    #modelb.save("m2.tf")
-#
-    #model1 = load_model('m1.tf')
-    #model2 = load_model('m2.tf')
-#
-    ##Initiating the usage of individual models
-    #keras_model = keras.models.load_model('m1.tf', compile=False) 
-    #keras_model._name = 'model1'
-    #keras_model2 = keras.models.load_model('m2.tf', compile=False) 
-    #keras_model2._name = 'model2'
-    models = [modela, modelb] #stacking individual models in a list
-    model_input = tf.keras.Input(shape=(124, 124, 1)) #takes a list of tensors as input, all of the same shape
-    model_outputs = [model(model_input) for model in models] #collects outputs of models in a list
-    ensemble_output = tf.keras.layers.Average()(model_outputs) #averaging outputs
-    ensemble_model = tf.keras.Model(inputs=model_input, outputs=ensemble_output)
-    ensemble_model.summary() #prints a comprehensive summary of the Keras model
 
 
 def multivariate_prediction(layer_num, layer_size, layer_name):
@@ -389,10 +368,8 @@ def createModel(layer_num, layer_size, layer_name, dropout):
     return model
 
 def runTest():
-    #SARIMA_prediction()
-    model1 = ARIMA_prediction()
-    model2 = model1
-    SARIMA_prediction(model1, model2)
+    arima_pred = ARIMA_prediction()
+    #model2 = model1
     if MULTIVARIATE:
         multi_pred = multivariate_prediction(LAYER_NUM, LAYER_SIZE, LAYER_NAME)
     
@@ -418,6 +395,8 @@ def runTest():
 
     # The above bug is the reason for the following line of code
     testData = testData[1:]
+
+    testData.to_csv("testfilename.csv") 
 
     actual_prices = testData[PRICE_VALUE].values
 
@@ -513,8 +492,16 @@ def runTest():
         df_multiPrices = df_multiPrices.set_index("Index")
         df_multiPrices['Close'] = np.array(multi_pred)
 
-    #DF = pd.DataFrame(df_futurePrices)
-    #DF.to_csv("data9.csv")
+    ensemble_preds = None
+    if ENSEMBLE:
+        predicted_prices_list = predicted_prices.tolist()
+
+        i = 0
+        
+        for value in arima_pred:
+            ensemble_preds = np.append(ensemble_preds, (arima_pred[i] + predicted_prices_list[i])/2)
+            i += 1
+
 
     # A few concluding remarks here:
     # 1. The predictor is quite bad, especially if you look at the next day 
@@ -540,10 +527,14 @@ def runTest():
     #------------------------------------------------------------------------------
 
     plt.plot(actual_prices, color="black", label=f"Actual {COMPANY} Price")
-    plt.plot(predicted_prices, color="green", label=f"Predicted {COMPANY} Price")
-    plt.plot(df_futurePrices, color="orange", label=f"Predicted {COMPANY} Future Price")
-    if MULTIVARIATE: # Display Multivariate data if it is enabled
-        plt.plot(df_multiPrices, color="red", label=f"Predicted {COMPANY} multivariate Price")
+    if ENSEMBLE:
+        plt.plot(ensemble_preds, color="green", label=f"Ensemble Predicted {COMPANY} Price")
+    else:
+        plt.plot(predicted_prices, color="green", label=f"Predicted {COMPANY} Price")
+        plt.plot(df_futurePrices, color="orange", label=f"Predicted {COMPANY} Future Price")
+        if MULTIVARIATE: # Display Multivariate data if it is enabled
+            plt.plot(df_multiPrices, color="red", label=f"Predicted {COMPANY} multivariate Price")
+    
     plt.title(f"{COMPANY} Share Price")
     plt.xlabel("Time")
     plt.ylabel(f"{COMPANY} Share Price")
