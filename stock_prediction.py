@@ -201,35 +201,31 @@ def getDataRatio(filename, ratio):
 
 def ARIMA_prediction():
 
-    #series = trainData
-    # split into train and test sets
-    #X = series['Close'].values
-    #size = int(len(X) * 0.66)
-    #train, test = X[0:size], X[size:len(X)]
+    # assign train and test data to variables
     train = trainData['Close'].values
-
     test1 = testData[1:]
     test = test1['Close'].values
-
-    
-    
     history = [x for x in train]
     predictions = list()
-    my_seasonal_order = (1, 1, 0, 6)
+    # parameters for SARIMA
+    my_seasonal_order = (SAUTOREG, SDIFERENCE, SMOVAVG, SEASON)
 
     # walk-forward validation
     for t in range(len(test)):
+        # re-create the ARIMA model after each new observation 
         if SARIMA:
-            model = ARIMA(history, order=(5,1,0), seasonal_order=my_seasonal_order)
+            model = ARIMA(history, order=(AUTOREG,DIFERENCE,MOVAVG), seasonal_order=my_seasonal_order)
         else:
-            model = ARIMA(history, order=(5,1,0))
+            model = ARIMA(history, order=(AUTOREG,DIFERENCE,MOVAVG))
         model_fit = model.fit()
+        # make prediction
         output = model_fit.forecast()
-        yhat = output[0]
-        predictions.append(yhat)
-        obs = test[t]
-        history.append(obs)
-        print('predicted=%f, expected=%f' % (yhat, obs))
+        forecast = output[0]
+        predictions.append(forecast)
+        expected = test[t]
+        # keep track of past observations
+        history.append(expected)
+        print('predicted=%f, expected=%f' % (forecast, expected))
     return predictions
 
 
@@ -499,7 +495,6 @@ def runTest():
         predicted_prices_list = predicted_prices.tolist()
 
         i = 0
-        
         for value in arima_pred:
             ensemble_preds = np.append(ensemble_preds, (arima_pred[i] + predicted_prices_list[i])/2)
             i += 1

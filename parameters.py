@@ -43,7 +43,7 @@ MULTIVARIATE = False            # Pick whether to predict and display Multivaria
 
 ENSEMBLE = True                 # Pick whether to use ensemble with arima/sarima or not
 
-SARIMA = True                   # True for SARIMA false for ARIMA
+SARIMA = False                   # True for SARIMA false for ARIMA
 
 SCALER = True                   # Pick whether to predict and display Multivariate data in additional to other
 
@@ -128,11 +128,11 @@ match ARIMA_HYPERPARAM:
     case 4: 
         AUTOREG = 5
         DIFERENCE = 1
-        MOVAVG = 10
+        MOVAVG = 1
     case 5: 
-        AUTOREG = 5
+        AUTOREG = 1
         DIFERENCE = 1
-        MOVAVG = 10
+        MOVAVG = 1
     case _: #Default settings
         AUTOREG = 5
         DIFERENCE = 1
