@@ -41,7 +41,9 @@ NDAYS = 30                      # Set how many days in the future to make a pred
 
 MULTIVARIATE = False            # Pick whether to predict and display Multivariate data in additional to other
 
-ENSEMBLE = True                 # Pick whether to use ensemble with arima or not
+ENSEMBLE = True                 # Pick whether to use ensemble with arima/sarima or not
+
+SARIMA = True                   # True for SARIMA false for ARIMA
 
 SCALER = True                   # Pick whether to predict and display Multivariate data in additional to other
 
@@ -55,16 +57,30 @@ SCALER = True                   # Pick whether to predict and display Multivaria
 
 # Default Parameters
 
+#RNN param
 LAYER_NUM = 2
 LAYER_SIZE = 50
 LAYER_NAME = SimpleRNN
 DROPOUT = 0.2
 
+#ARIMA param
+AUTOREG = 5     #Trend autoregression order
+DIFERENCE = 1   #Trend difference order
+MOVAVG = 0      #Trend moving average order
+
+#SARIMA param
+SAUTOREG = 1    #Seasonal autoregressive order
+SDIFERENCE = 1  #Seasonal difference order
+SMOVAVG = 0     #Seasonal moving average order
+SEASON = 6      #The number of time steps for a single seasonal period
+
 # Hyperparameters
 
-HYPERPARAM = 5
+RNN_HYPERPARAM = 5
+ARIMA_HYPERPARAM = 1
+SARIMA_HYPERPARAM = 1
 
-match HYPERPARAM:
+match RNN_HYPERPARAM:
     case 1: #LSTM
         LAYER_NUM = 2
         LAYER_SIZE = 50
@@ -95,3 +111,51 @@ match HYPERPARAM:
         LAYER_SIZE = 50
         LAYER_NAME = SimpleRNN
         DROPOUT = 0.2
+
+match ARIMA_HYPERPARAM:
+    case 1: 
+        AUTOREG = 5
+        DIFERENCE = 1
+        MOVAVG = 0
+    case 2: 
+        AUTOREG = 10
+        DIFERENCE = 1
+        MOVAVG = 0
+    case 3: 
+        AUTOREG = 5
+        DIFERENCE = 10
+        MOVAVG = 0
+    case 4: 
+        AUTOREG = 5
+        DIFERENCE = 1
+        MOVAVG = 10
+    case 5: 
+        AUTOREG = 5
+        DIFERENCE = 1
+        MOVAVG = 10
+    case _: #Default settings
+        AUTOREG = 5
+        DIFERENCE = 1
+        MOVAVG = 0
+
+match SARIMA_HYPERPARAM:
+    case 1: #7 day week
+        SAUTOREG = 1    
+        SDIFERENCE = 1  
+        SMOVAVG = 0     
+        SEASON = 7         
+    case 2: #30 day month
+        SAUTOREG = 1    
+        SDIFERENCE = 1  
+        SMOVAVG = 0     
+        SEASON = 30         
+    case 3: # 365 day year
+        SAUTOREG = 1    
+        SDIFERENCE = 1  
+        SMOVAVG = 0     
+        SEASON = 365            
+    case _: #Default settings
+        SAUTOREG = 1    
+        SDIFERENCE = 1  
+        SMOVAVG = 0     
+        SEASON = 7      

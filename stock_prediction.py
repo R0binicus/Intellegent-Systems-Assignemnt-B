@@ -215,18 +215,21 @@ def ARIMA_prediction():
     
     history = [x for x in train]
     predictions = list()
-    model = ARIMA(history, order=(5,1,0))
+    my_seasonal_order = (1, 1, 0, 6)
 
     # walk-forward validation
     for t in range(len(test)):
-     model = ARIMA(history, order=(5,1,0))
-     model_fit = model.fit()
-     output = model_fit.forecast()
-     yhat = output[0]
-     predictions.append(yhat)
-     obs = test[t]
-     history.append(obs)
-     print('predicted=%f, expected=%f' % (yhat, obs))
+        if SARIMA:
+            model = ARIMA(history, order=(5,1,0), seasonal_order=my_seasonal_order)
+        else:
+            model = ARIMA(history, order=(5,1,0))
+        model_fit = model.fit()
+        output = model_fit.forecast()
+        yhat = output[0]
+        predictions.append(yhat)
+        obs = test[t]
+        history.append(obs)
+        print('predicted=%f, expected=%f' % (yhat, obs))
     return predictions
 
 
@@ -235,7 +238,6 @@ def ARIMA_prediction():
 
     #LINK https://medium.com/@cortexmoldova/arima-time-series-forecasting-model-with-python-5b0cfdbb08fa
     # Maybe use this one
-
 
 def multivariate_prediction(layer_num, layer_size, layer_name):
     PREDICT_COLUNM = "Close"
