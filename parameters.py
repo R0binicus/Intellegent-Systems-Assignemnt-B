@@ -13,7 +13,7 @@ DATA_SOURCE = "yahoo"
 COMPANY = "TSLA"
 
 TRAIN_START = '2015-01-01'      #Start date of dataset    #Must be in 'YYYY-MM-DD' format eg '2015-01-01'
-TEST_END = '2023-06-30'         #End date of dataset    #Must be in 'YYYY-MM-DD' format eg '2022-12-31'
+TEST_END = '2023-09-30'         #End date of dataset    #Must be in 'YYYY-MM-DD' format eg '2022-12-31'
 
 SPLIT_DATE = '2020-09-01'       #Split date of dataset    #Must be in 'YYYY-MM-DD' format eg '2020-09-01'
     # WARNING must be on 2020-09-01 or later otherwise i don't think there is enough data to predict properly
@@ -39,13 +39,15 @@ STOREFILE = True                # Pick whether to store file or not
 
 NDAYS = 30                      # Set how many days in the future to make a predictions in the future
 
+SCALER = True                   # Pick whether to predict and display Multivariate data in additional to other
+
 MULTIVARIATE = False            # Pick whether to predict and display Multivariate data in additional to other
 
-ENSEMBLE = True                 # Pick whether to use ensemble with arima/sarima or not
+ENSEMBLE = False                 # Pick whether to use ensemble with arima/sarima or not
 
 SARIMA = False                   # True for SARIMA false for ARIMA
 
-SCALER = True                   # Pick whether to predict and display Multivariate data in additional to other
+
 
 #
 #

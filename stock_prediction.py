@@ -129,18 +129,18 @@ def getDataSplitDate(filename, splitDate):
     testStartDate = date + timedelta(days=1)
     testStartDate = testStartDate.strftime('%Y-%m-%d')
 
-    # Code for testing dates
-    print('splitDate:',splitDate)
-    print('testStartDate:',testStartDate)
-
-    splitDate = '2020-09-01'
-    testStartDate = '2020-09-02'
-
-    # Code for testing dates
-    print('splitDate:',splitDate)
-    print('testStartDate:',testStartDate)
-
-    fullData = df
+    ## Code for testing dates
+    #print('splitDate:',splitDate)
+    #print('testStartDate:',testStartDate)
+#
+    #splitDate = '2020-09-01'
+    #testStartDate = '2020-09-02'
+#
+    ## Code for testing dates
+    #print('splitDate:',splitDate)
+    #print('testStartDate:',testStartDate)
+#
+    #fullData = df
 
     # create train/test partition
     global trainData
@@ -197,8 +197,6 @@ def getDataRatio(filename, ratio):
     #trainData.to_csv("trainfilename.csv")
     #testData.to_csv("testfilename.csv")        #test that the data is split correctly
 
-    # link: https://www.relataly.com/stock-market-prediction-using-multivariate-time-series-in-python/1815/
-
 def ARIMA_prediction():
 
     # assign train and test data to variables
@@ -228,17 +226,7 @@ def ARIMA_prediction():
         print('predicted=%f, expected=%f' % (forecast, expected))
     return predictions
 
-
-    #LINK https://machinelearningmastery.com/arima-for-time-series-forecasting-with-python/
-
-
-    #LINK https://medium.com/@cortexmoldova/arima-time-series-forecasting-model-with-python-5b0cfdbb08fa
-    # Maybe use this one
-
 def multivariate_prediction(layer_num, layer_size, layer_name):
-    PREDICT_COLUNM = "Close"
-    FEATURE_COLUNMS = ['Open','High','Low','Close','Adj Close','Volume']
-
     # make a copy of the train and test dataframes
     train_df = trainData.sort_values(by=['Date']).copy()
     test_df = testData.sort_values(by=['Date']).copy()
@@ -366,8 +354,8 @@ def createModel(layer_num, layer_size, layer_name, dropout):
     return model
 
 def runTest():
-    arima_pred = ARIMA_prediction()
-    #model2 = model1
+    if ENSEMBLE:
+        arima_pred = ARIMA_prediction()
     if MULTIVARIATE:
         multi_pred = multivariate_prediction(LAYER_NUM, LAYER_SIZE, LAYER_NAME)
     
@@ -378,8 +366,6 @@ def runTest():
     global testData
 
     PRICE_VALUE = "Close"
-
-    PREDICT_COLUNM = "Close"
 
     scaler = MinMaxScaler(feature_range=(0, 1)) 
 
