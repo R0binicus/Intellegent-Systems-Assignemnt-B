@@ -23,7 +23,7 @@ PREDICTION_DAYS = 1             # Number of days into the future to predict the 
 LOOKBACK_DAYS = 60              #Number of days to look back to base the prediction
                                 # 60 Original
 
-RATIO = 4      #Int or Float    #Not actually a ration, but idk what else to call it
+RATIO = 15      #Int or Float    #Not actually a ration, but idk what else to call it
                                 #2 is train/test equally split, 4 is train gets about 75% of data
 
 FEATURE_COLUNMS = 'Open','High','Low','Close','Adj Close','Volume'
@@ -33,6 +33,7 @@ MODE = 2
 # 2 = Split dataset into train/test sets by ratio, then predict
 # 3 = Make candlestick chart of data from past NDAYS
 # 4 = Make boxplot chart of data from past NDAYS
+# 5 = Run Prediction with Prophet model
 # Other = Split dataset into train/test sets randomly, then predict
 
 STOREFILE = True                # Pick whether to store file or not
@@ -47,9 +48,11 @@ ENSEMBLE = False                 # Pick whether to use ensemble with arima/sarim
 
 SARIMA = False                   # True for SARIMA false for ARIMA
 
-FOREST = True
+FOREST = True                   # True to make and display Random Forest Predictions
 
-FOREST_ESTIMATORS = 10
+FOREST_ESTIMATORS = 10          # The number of estimators the Random Forest Model uses 
+
+PROPHET_TRAIN_OFFSET = 100      # The number of days to take off the end of the train data
 
 #
 #

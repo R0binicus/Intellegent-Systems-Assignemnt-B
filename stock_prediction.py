@@ -36,6 +36,7 @@ from keras.layers import Dense, Dropout, LSTM, InputLayer, SimpleRNN, GRU
 from keras.callbacks import EarlyStopping
 from pandas import concat
 from numpy import asarray
+from prophet import Prophet
 
 import matplotlib
 import os
@@ -143,7 +144,9 @@ def getDataSplitDate(filename, splitDate):
     #print('splitDate:',splitDate)
     #print('testStartDate:',testStartDate)
 #
-    #fullData = df
+    
+    global fullData
+    fullData = df
 
     # create train/test partition
     global trainData
@@ -187,6 +190,7 @@ def getDataRatio(filename, ratio):
     print('trainEndDate Dataset:',trainEndDate)
     print('testStartDate:',testStartDate)
 
+    global fullData
     fullData = df
 
     # create train/test partition
@@ -417,7 +421,50 @@ def runTestForest():
 
     return forestPrediction
 
+def runTestProphet():
+    # Only need to extract Close because the date is the index, and as such is automatically transfered over too
+    #train = trainData['Close']
+    #test = testData['Close']
+    #train = train.reset_index()
+    #test = test.reset_index()
+    #train.columns = ['ds', 'y']
+    #test.columns = ['ds', 'y']
+    #train['ds']= pd.to_datetime(train['ds'])
+    #test['ds']= pd.to_datetime(test['ds'])
+    #train.to_csv("datafuturetrain.csv")
+    #test.to_csv("datafuturetest.csv")
+
+    #Get pre-split data 
+    test = fullData['Close']
+    test = test.reset_index()
+    test.columns = ['ds', 'y']
+    test['ds']= pd.to_datetime(test['ds'])
+    train = test.drop(test.index[-PROPHET_TRAIN_OFFSET:])
+    
+    
+    # define the model
+    model = Prophet()
+    # fit the model
+    model.fit(train)
+    # define the period for which we want a prediction
+    future = list()
+    future = test['ds']#.values
+    future = pd.DataFrame(future)
+    
+    # use the model to make a forecast
+    forecast = model.predict(future)
+    forecast.to_csv("dataforecast.csv")
+    # calculate MAE between expected and predicted values for december
+    y_true = test['y'][-len(forecast):].values
+    y_pred = forecast['yhat'].values
+    # plot expected vs actual
+    plt.plot(y_true, label='Actual')
+    plt.plot(y_pred, label='Predicted')
+    plt.legend()
+    plt.show()
+
 def runTest():
+    runTestProphet()
     if ENSEMBLE:
         arima_pred = ARIMA_prediction()
     if MULTIVARIATE:
@@ -600,6 +647,10 @@ def Main(): #Main function for deciding which split method was chosen
 
         case 4: #Boxplot Chart
             boxplotChart(ticker_data_filename)
+
+        case 5: #Prophet Prediction
+            getDataRatio(ticker_data_filename, RATIO)
+            runTestProphet()
 
         case _: #Predict with random date split
             #Convert dates to datetime
