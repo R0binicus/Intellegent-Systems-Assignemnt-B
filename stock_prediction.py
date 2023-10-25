@@ -360,10 +360,12 @@ def createModel(layer_num, layer_size, layer_name, dropout):
     return model
 
 
-    # transform a time series dataset into a supervised learning dataset
+    # turn time series data into a supervised learning data
 def data_to_supervised(data):
     df = pd.DataFrame(data)
     colunms = list()
+
+    # sliding window technique used to make the new samples for the supervised learning data
     # input sequence (t-n, ... t-1)
     for i in range(1, 0, -1):
         colunms.append(df.shift(i))
@@ -372,7 +374,7 @@ def data_to_supervised(data):
         colunms.append(df.shift(-i))
     # put it all together
     newdf = concat(colunms, axis=1)
-    # drop rows with NaN values
+    # drop NaN values
     newdf.dropna(inplace=True)
     return newdf.values
 
@@ -389,8 +391,8 @@ def forest_prediction(train, testX):
     forestPrediction = model.predict([testX])
     return forestPrediction[0]
 
-    # walk-forward validation for univariate data
-def forest_validation(test, train):
+    # loop for running the prediction on a number of days
+def forest_loop(test, train):
     predictions = list()
     # seed history with training dataset
     history = [x for x in train]
@@ -406,7 +408,7 @@ def forest_validation(test, train):
 
 
 def runTestForest():
-    # get test and train data
+    # get test + train data and make local variables
     global testData
     global trainData
     train = trainData["Close"].values
@@ -417,54 +419,44 @@ def runTestForest():
     test = data_to_supervised(test)
 
     # make predictions
-    forestPrediction = forest_validation(test, train)
+    forestPrediction = forest_loop(test, train)
 
     return forestPrediction
 
 def runTestProphet():
-    # Only need to extract Close because the date is the index, and as such is automatically transfered over too
-    #train = trainData['Close']
-    #test = testData['Close']
-    #train = train.reset_index()
-    #test = test.reset_index()
-    #train.columns = ['ds', 'y']
-    #test.columns = ['ds', 'y']
-    #train['ds']= pd.to_datetime(train['ds'])
-    #test['ds']= pd.to_datetime(test['ds'])
-    #train.to_csv("datafuturetrain.csv")
-    #test.to_csv("datafuturetest.csv")
-
     #Get pre-split data 
+    # Only need to extract Close because the date is the index, and as such is automatically transfered over too
     test = fullData['Close']
+    # reset index because it turns it back into a normal colunm which is referenced later
     test = test.reset_index()
+    # turn date and close colunm into ds and y (necessary for prophet to work)
     test.columns = ['ds', 'y']
+    # make sure ds colunm is a datatime
     test['ds']= pd.to_datetime(test['ds'])
+    # remove offset days from the training data
     train = test.drop(test.index[-PROPHET_TRAIN_OFFSET:])
     
-    
-    # define the model
+    # make the prophet model
     model = Prophet()
-    # fit the model
+    # train the model from the train data
     model.fit(train)
-    # define the period for which we want a prediction
-    future = list()
-    future = test['ds']#.values
-    future = pd.DataFrame(future)
+    # setup dataframe from only the date date
+    futuredays = list()
+    futuredays = test['ds']
+    futuredays = pd.DataFrame(futuredays)
     
-    # use the model to make a forecast
-    forecast = model.predict(future)
-    forecast.to_csv("dataforecast.csv")
-    # calculate MAE between expected and predicted values for december
-    y_true = test['y'][-len(forecast):].values
-    y_pred = forecast['yhat'].values
-    # plot expected vs actual
-    plt.plot(y_true, label='Actual')
-    plt.plot(y_pred, label='Predicted')
+    # use the model to make a forecast from the futuredays datetime range
+    forecast = model.predict(futuredays)
+    # set the actual and predicted values
+    actualData = test['y'][-len(forecast):].values
+    prophetPrediction = forecast['yhat'].values
+    # plot actual vs Predicted Data
+    plt.plot(actualData, color="black", label=f"Actual {COMPANY} Price")
+    plt.plot(prophetPrediction, color="green", label=f"Predicted {COMPANY} Price using Prophet")
     plt.legend()
     plt.show()
 
 def runTest():
-    runTestProphet()
     if ENSEMBLE:
         arima_pred = ARIMA_prediction()
     if MULTIVARIATE:
@@ -485,7 +477,7 @@ def runTest():
 
     # The above bug is the reason for the following line of code
     testData = testData[1:]
-    testData.to_csv("testfilename.csv") 
+    #testData.to_csv("testfilename.csv") 
     actual_prices = testData[PRICE_VALUE].values
     total_dataset = pd.concat((trainData[PRICE_VALUE], testData[PRICE_VALUE]), axis=0)
     model_inputs = total_dataset[len(total_dataset) - len(testData) - LOOKBACK_DAYS:].values

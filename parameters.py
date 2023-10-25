@@ -28,7 +28,7 @@ RATIO = 15      #Int or Float    #Not actually a ration, but idk what else to ca
 
 FEATURE_COLUNMS = 'Open','High','Low','Close','Adj Close','Volume'
 
-MODE = 2
+MODE = 5
 # 1 = Split dataset into train/test sets by date, then predict
 # 2 = Split dataset into train/test sets by ratio, then predict
 # 3 = Make candlestick chart of data from past NDAYS
@@ -48,11 +48,11 @@ ENSEMBLE = False                 # Pick whether to use ensemble with arima/sarim
 
 SARIMA = False                   # True for SARIMA false for ARIMA
 
-FOREST = True                   # True to make and display Random Forest Predictions
+FOREST = False                   # True to make and display Random Forest Predictions
 
 FOREST_ESTIMATORS = 10          # The number of estimators the Random Forest Model uses 
 
-PROPHET_TRAIN_OFFSET = 100      # The number of days to take off the end of the train data
+PROPHET_TRAIN_OFFSET = 300      # The number of days to take off the end of the train data
 
 #
 #
