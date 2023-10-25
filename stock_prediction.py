@@ -29,10 +29,13 @@ from sklearn import preprocessing
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error
+from sklearn.ensemble import RandomForestRegressor
 from tensorflow import keras
 from keras.models import Sequential
 from keras.layers import Dense, Dropout, LSTM, InputLayer, SimpleRNN, GRU
 from keras.callbacks import EarlyStopping
+from pandas import concat
+from numpy import asarray
 
 import matplotlib
 import os
@@ -305,7 +308,6 @@ def createModel(layer_num, layer_size, layer_name, dropout):
     #Declare some variables so the model knows whats what
     PRICE_VALUE = "Close"
 
-
     scaler = MinMaxScaler(feature_range=(0, 1)) 
     scaled_data = scaler.fit_transform(trainData[PRICE_VALUE].values.reshape(-1, 1)) 
 
@@ -353,6 +355,68 @@ def createModel(layer_num, layer_size, layer_name, dropout):
     # Return completed model to be tested 
     return model
 
+
+    # transform a time series dataset into a supervised learning dataset
+def data_to_supervised(data):
+    df = pd.DataFrame(data)
+    colunms = list()
+    # input sequence (t-n, ... t-1)
+    for i in range(1, 0, -1):
+        colunms.append(df.shift(i))
+    # forecast sequence (t, t+1, ... t+n)
+    for i in range(0, 1):
+        colunms.append(df.shift(-i))
+    # put it all together
+    newdf = concat(colunms, axis=1)
+    # drop rows with NaN values
+    newdf.dropna(inplace=True)
+    return newdf.values
+
+    # fit an random forest model and make a one step prediction
+def forest_prediction(train, testX):
+    # turn list into an array
+    train = asarray(train)
+    # split into input and output columns
+    trainX, trainy = train[:, :-1], train[:, -1]
+    # make model
+    model = RandomForestRegressor(n_estimators=FOREST_ESTIMATORS)
+    model.fit(trainX, trainy)
+    # make a single prediction
+    forestPrediction = model.predict([testX])
+    return forestPrediction[0]
+
+    # walk-forward validation for univariate data
+def forest_validation(test, train):
+    predictions = list()
+    # seed history with training dataset
+    history = [x for x in train]
+    # step over each time-step in the test set
+    for i in range(len(test)):
+        # split test row into input and output columns
+        testX = test[i, :-1]
+        # fit model on history and make a prediction
+        forestPrediction = forest_prediction(history, testX)
+        # store forecast in list of predictions
+        predictions.append(forestPrediction)
+    return predictions
+
+
+def runTestForest():
+    # get test and train data
+    global testData
+    global trainData
+    train = trainData["Close"].values
+    test = testData["Close"].values
+
+    # turn train and test data into supervised learning
+    train = data_to_supervised(train)
+    test = data_to_supervised(test)
+
+    # make predictions
+    forestPrediction = forest_validation(test, train)
+
+    return forestPrediction
+
 def runTest():
     if ENSEMBLE:
         arima_pred = ARIMA_prediction()
@@ -364,14 +428,9 @@ def runTest():
 
     #Make sure it knows that testData is refering to the global
     global testData
-
     PRICE_VALUE = "Close"
-
     scaler = MinMaxScaler(feature_range=(0, 1)) 
-
     scaled_data = scaler.fit_transform(trainData[PRICE_VALUE].values.reshape(-1, 1)) 
-
-    
 
     #------------------------------------------------------------------------------
     # Test the model accuracy on existing data
@@ -379,13 +438,9 @@ def runTest():
 
     # The above bug is the reason for the following line of code
     testData = testData[1:]
-
     testData.to_csv("testfilename.csv") 
-
     actual_prices = testData[PRICE_VALUE].values
-
     total_dataset = pd.concat((trainData[PRICE_VALUE], testData[PRICE_VALUE]), axis=0)
-
     model_inputs = total_dataset[len(total_dataset) - len(testData) - LOOKBACK_DAYS:].values
     # We need to do the above because to predict the closing price of the fisrt
     # LOOKBACK_DAYS of the test period [TEST_START, TEST_END], we'll need the 
@@ -397,16 +452,6 @@ def runTest():
     model_inputs = scaler.transform(model_inputs)
     # We again normalize our closing price data to fit them into the range (0,1)
     # using the same scaler used above 
-    # However, there may be a problem: scaler was computed on the basis of
-    # the Max/Min of the stock price for the period [TRAIN_START, TRAIN_END],
-    # but there may be a lower/higher price during the test period 
-    # [TEST_START, TEST_END]. That can lead to out-of-bound values (negative and
-    # greater than one)
-    # We'll call this ISSUE #2
-
-    # TO DO: Generally, there is a better way to process the data so that we 
-    # can use part of it for training and the rest for testing. You need to 
-    # implement such a way
 
     #------------------------------------------------------------------------------
     # Make predictions on test data
@@ -444,13 +489,10 @@ def runTest():
  
         # make prediction of next day
         prediction = model.predict(real_data)
-
         # unscale and flatten prediction data
         scaledPrdiction = scaler.inverse_transform(prediction)
-
         # add predicted data to future price
         futurePrice.append(scaledPrdiction.flatten()[0])
-
         # set prediction to be the flattened but still scaled data
         prediction = prediction.flatten()[0]
 
@@ -484,32 +526,7 @@ def runTest():
         for value in arima_pred:
             ensemble_preds = np.append(ensemble_preds, (arima_pred[i] + predicted_prices_list[i])/2)
             i += 1
-
-
-    # A few concluding remarks here:
-    # 1. The predictor is quite bad, especially if you look at the next day 
-    # prediction, it missed the actual price by about 10%-13%
-    # Can you find the reason?
-    # 2. The code base at
-    # https://github.com/x4nth055/pythoncode-tutorials/tree/master/machine-learning/stock-prediction
-    # gives a much better prediction. Even though on the surface, it didn't seem 
-    # to be a big difference (both use Stacked LSTM)
-    # Again, can you explain it?
-    # A more advanced and quite different technique use CNN to analyse the images
-    # of the stock price changes to detect some patterns with the trend of
-    # the stock price:
-    # https://github.com/jason887/Using-Deep-Learning-Neural-Networks-and-Candlestick-Chart-Representation-to-Predict-Stock-Market
-    # Can you combine these different techniques for a better prediction??
-
-    #------------------------------------------------------------------------------
-    # Plot the test predictions
-    ## To do:
-    # 1) Candle stick charts
-    # 2) Chart showing High & Lows of the day
-    # 3) Show chart of next few days (predicted)
-    #------------------------------------------------------------------------------
-
-    plt.plot(actual_prices, color="black", label=f"Actual {COMPANY} Price")
+    
     if ENSEMBLE:
         plt.plot(ensemble_preds, color="green", label=f"Ensemble Predicted {COMPANY} Price")
     else:
@@ -517,15 +534,15 @@ def runTest():
         plt.plot(df_futurePrices, color="orange", label=f"Predicted {COMPANY} Future Price")
         if MULTIVARIATE: # Display Multivariate data if it is enabled
             plt.plot(df_multiPrices, color="red", label=f"Predicted {COMPANY} multivariate Price")
-    
+    if FOREST: # Display Forest data if it is enabled
+        forestPrediction = runTestForest()
+        plt.plot(forestPrediction, color="purple", label=f"Predicted {COMPANY} forest Price")
+    plt.plot(actual_prices, color="black", label=f"Actual {COMPANY} Price")
     plt.title(f"{COMPANY} Share Price")
     plt.xlabel("Time")
     plt.ylabel(f"{COMPANY} Share Price")
     plt.legend()
     plt.show()
-
-    #candlestickChart()
-
 
 def candlestickChart(filename):
     # Get data

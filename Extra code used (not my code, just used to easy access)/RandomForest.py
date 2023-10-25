@@ -1,84 +1,49 @@
 
-# forecast monthly births with random forest
-from numpy import asarray
+# evaluate prophet time series forecasting model on hold out dataset
 from pandas import read_csv
-from pandas import DataFrame
-from pandas import concat
-from sklearn.metrics import mean_absolute_error
-from sklearn.ensemble import RandomForestRegressor
-from matplotlib import pyplot
+from pandas import to_datetime
 import pandas as pd
- 
-# transform a time series dataset into a supervised learning dataset
-def series_to_supervised(data, n_in=1, n_out=1):
-    n_vars = 1 if type(data) is list else data.shape
-    df = DataFrame(data)
-    cols = list()
-    # input sequence (t-n, ... t-1)
-    for i in range(n_in, 0, -1):
-        cols.append(df.shift(i))
-    # forecast sequence (t, t+1, ... t+n)
-    for i in range(0, n_out):
-        cols.append(df.shift(-i))
-    # put it all together
-    agg = concat(cols, axis=1)
-    # drop rows with NaN values
-    agg.dropna(inplace=True)
-    return agg.values
- 
-# fit an random forest model and make a one step prediction
-def random_forest_forecast(train, testX):
-    # transform list into array
-    train = asarray(train)
-    # split into input and output columns
-    trainX, trainy = train[:, :-1], train[:, -1]
-    # fit model
-    model = RandomForestRegressor(n_estimators=10)
-    model.fit(trainX, trainy)
-    # make a one-step prediction
-    forestPrediction = model.predict([testX])
-    return forestPrediction[0]
- 
-# walk-forward validation for univariate data
-def walk_forward_validation(data, n_test):
-    predictions = list()
-    ## split dataset
-    #train, test = train_test_split(data, n_test)
+from pandas import DataFrame
+from prophet import Prophet
+from sklearn.metrics import mean_absolute_error
+from matplotlib import pyplot
+# load data
+path = 'https://raw.githubusercontent.com/jbrownlee/Datasets/master/monthly-car-sales.csv'
+df = read_csv('daily-total-female-births.csv', header=0)
+df["Date"] = pd.to_datetime(df['Date'], format='%d/%m/%Y')
 
-    num = round(len(data)/5.25)
-    train, test = data[:-num, :], data[-num:, :]
 
-    # seed history with training dataset
-    history = [x for x in train]
-    # step over each time-step in the test set
-    for i in range(len(test)):
-        # split test row into input and output columns
-        testX, testy = test[i, :-1], test[i, -1]
-        # fit model on history and make a prediction
-        forestPrediction = random_forest_forecast(history, testX)
-        # store forecast in list of predictions
-        predictions.append(forestPrediction)
-    # add actual observation to history for the next loop
-    history.append(test[i])
-    # summarize progress
-    print('>expected=%.1f, predicted=%.1f' % (testy, forestPrediction))
-    # estimate prediction error
-    error = mean_absolute_error(test[:, -1], predictions)
-    return error, test[:, -1], predictions
- 
-# load the dataset
-series = read_csv('daily-total-female-births.csv', header=0, index_col=0)
-values = series["Close"].values
+# prepare expected column names
+df.columns = ['ds', 'y']
+df['ds']= to_datetime(df['ds'])
 
-# transform the time series data into supervised learning
-data = series_to_supervised(values, n_in=6)
-
-# evaluate
-mae, y, forestPrediction = walk_forward_validation(data, 12)
-
+#df.to_csv("data1.csv")
+# create test dataset, remove last 12 months
+train = df.drop(df.index[-300:])
+print(train.tail())
+# define the model
+model = Prophet()
+# fit the model
+model.fit(train)
+# define the period for which we want a prediction
+future = list()
+for i in range(1, 13):
+ date = '2016-%02d' % i
+ future.append([date])
+future = DataFrame(future)
+future.columns = ['ds']
+future['ds'] = to_datetime(future['ds'])
+future.to_csv("datafuture.csv")
+# use the model to make a forecast
+forecast = model.predict(future)
+forecast.to_csv("dataforecast.csv")
+# calculate MAE between expected and predicted values for december
+y_true = df['y'][-12:].values
+y_pred = forecast['yhat'].values
+mae = mean_absolute_error(y_true, y_pred)
 print('MAE: %.3f' % mae)
-# plot expected vs predicted
-pyplot.plot(y, label='Expected')
-pyplot.plot(forestPrediction, label='Predicted')
+# plot expected vs actual
+pyplot.plot(y_true, label='Actual')
+pyplot.plot(y_pred, label='Predicted')
 pyplot.legend()
 pyplot.show()

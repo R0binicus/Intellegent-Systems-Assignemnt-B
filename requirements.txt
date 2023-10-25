@@ -9,3 +9,5 @@ yfinance
 scikit-learn
 mplfinance
 statsmodels
+cython
+prophet

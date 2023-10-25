@@ -12,7 +12,7 @@ from keras.layers import LSTM, SimpleRNN, GRU
 DATA_SOURCE = "yahoo"
 COMPANY = "TSLA"
 
-TRAIN_START = '2015-01-01'      #Start date of dataset    #Must be in 'YYYY-MM-DD' format eg '2015-01-01'
+TRAIN_START = '2016-06-01'      #Start date of dataset    #Must be in 'YYYY-MM-DD' format eg '2015-01-01'
 TEST_END = '2023-09-30'         #End date of dataset    #Must be in 'YYYY-MM-DD' format eg '2022-12-31'
 
 SPLIT_DATE = '2020-09-01'       #Split date of dataset    #Must be in 'YYYY-MM-DD' format eg '2020-09-01'
@@ -47,7 +47,9 @@ ENSEMBLE = False                 # Pick whether to use ensemble with arima/sarim
 
 SARIMA = False                   # True for SARIMA false for ARIMA
 
+FOREST = True
 
+FOREST_ESTIMATORS = 10
 
 #
 #
