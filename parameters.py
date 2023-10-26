@@ -15,20 +15,20 @@ COMPANY = "TSLA"
 TRAIN_START = '2016-06-01'      #Start date of dataset    #Must be in 'YYYY-MM-DD' format eg '2015-01-01'
 TEST_END = '2023-09-30'         #End date of dataset    #Must be in 'YYYY-MM-DD' format eg '2022-12-31'
 
-SPLIT_DATE = '2020-09-01'       #Split date of dataset    #Must be in 'YYYY-MM-DD' format eg '2020-09-01'
+SPLIT_DATE = '2022-01-01'       #Split date of dataset    #Must be in 'YYYY-MM-DD' format eg '2020-09-01'
     # WARNING must be on 2020-09-01 or later otherwise i don't think there is enough data to predict properly
 
-PREDICTION_DAYS = 1             # Number of days into the future to predict the stock prices
+PREDICTION_DAYS = 30             # Number of days into the future to predict the stock prices
 
 LOOKBACK_DAYS = 60              #Number of days to look back to base the prediction
                                 # 60 Original
 
-RATIO = 15      #Int or Float    #Not actually a ration, but idk what else to call it
+RATIO = 5      #Int or Float    #Not actually a ration, but idk what else to call it
                                 #2 is train/test equally split, 4 is train gets about 75% of data
 
 FEATURE_COLUNMS = 'Open','High','Low','Close','Adj Close','Volume'
 
-MODE = 5
+MODE = 2
 # 1 = Split dataset into train/test sets by date, then predict
 # 2 = Split dataset into train/test sets by ratio, then predict
 # 3 = Make candlestick chart of data from past NDAYS
@@ -44,12 +44,10 @@ SCALER = True                   # Pick whether to predict and display Multivaria
 
 MULTIVARIATE = False            # Pick whether to predict and display Multivariate data in additional to other
 
-ENSEMBLE = False                 # Pick whether to use ensemble with arima/sarima or not
-
+ENSEMBLE = True                 # Pick whether to use ensemble with arima/sarima or not
 SARIMA = False                   # True for SARIMA false for ARIMA
 
-FOREST = False                   # True to make and display Random Forest Predictions
-
+FOREST = True                   # True to make and display Random Forest Predictions
 FOREST_ESTIMATORS = 10          # The number of estimators the Random Forest Model uses 
 
 PROPHET_TRAIN_OFFSET = 300      # The number of days to take off the end of the train data
@@ -57,7 +55,7 @@ PROPHET_TRAIN_OFFSET = 300      # The number of days to take off the end of the 
 #
 #
 #
-# --------------------MODEL SETTINGS-----------------------------------------
+# --------------------ADVANCED SETTINGS-----------------------------------------
 #
 #
 #

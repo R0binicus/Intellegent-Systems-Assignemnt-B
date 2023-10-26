@@ -1,33 +1,17 @@
 # File: stock_prediction.py
-# Authors: Cheong Koo and Bao Vo
-# Date: 14/07/2021(v1); 19/07/2021 (v2); 25/07/2023 (v3)
-
-# Code modified from:
-# Title: Predicting Stock Prices with Python
-# Youtuble link: https://www.youtube.com/watch?v=PuZY9q-aKLw
-# By: NeuralNine
-
-# Need to install the following:
-# pip install numpy
-# pip install matplotlib
-# pip install pandas
-# pip install tensorflow
-# pip install scikit-learn
-# pip install pandas-datareader
-# pip install yfinance
-
+# Authors: Robin Findlay-Marks
+# Date: 26/10/2023
 
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
-import pandas_datareader as web
-import datetime as dt
-import tensorflow as tf
 import yfinance as yf
+import mplfinance as mpl 
+import os
+import random
 
-from sklearn import preprocessing
 from sklearn.preprocessing import MinMaxScaler
-from sklearn.model_selection import train_test_split
+#from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error
 from sklearn.ensemble import RandomForestRegressor
 from tensorflow import keras
@@ -37,33 +21,15 @@ from keras.callbacks import EarlyStopping
 from pandas import concat
 from numpy import asarray
 from prophet import Prophet
-
-import matplotlib
-import os
 from os.path import exists
-import time
-from collections import deque
-from datetime import timedelta, date
+from datetime import timedelta
 from datetime import datetime
-import random
-from parameters import *
-import mplfinance as mpl 
 from statsmodels.tsa.arima.model import ARIMA
-from math import sqrt
+from parameters import *
+#from math import sqrt
 
 
-
-# Temporary
-from sklearn.ensemble import VotingClassifier
-from sklearn.linear_model import LogisticRegression
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.svm import SVC
-from sklearn.datasets import make_classification
-from sklearn.model_selection import train_test_split
-from keras.models import load_model
-
-
-# Train and test data global variables for setting
+# Train, test and full data global variables for setting later
 trainData = None
 testData = None
 fullData = None
@@ -75,7 +41,7 @@ def checkFiles(filename):
     if (os.path.exists(filename)):
         #Read csv file and return the data inside
         data = pd.read_csv(filename)
-        # NaN values from pandas are values that are not present. For example in stocks if the stock data for a 
+        # NaN values from pandas are values that are not a number. For example in stocks if the stock data for a 
         # specific day was not recorded, i believe it would still have a record for that day, only the values 
         # would be NaN or 'Not a Number'
         
@@ -97,29 +63,9 @@ def checkFiles(filename):
         data.dropna(inplace=True)
         return data
 
- #Base function for future purposes
-#def getData(filename):
-#    df = checkFiles(filename)
-#
-#    df['Date'] = pd.to_datetime(df['Date'])
-#    df = df.set_index(df['Date'])
-#    df = df.sort_index()
-#
-#    # create train test partition
-#    global trainData
-#    #trainData = df
-#    trainData = df[TRAIN_START:TRAIN_END]
-#    global testData
-#    testData = df[TEST_START:TEST_END]
-#    #testData = df
-#    print('Train Dataset:',trainData.shape)
-#    print('Test Dataset:',testData.shape)
-#
-#    #trainData.to_csv("trainfilename.csv")
-#    #testData.to_csv("testfilename.csv")        #test that the data is split correctly
-
 # This function gets the datafile name as well as the split date
 # it then runs the file checker to get the dataset, then splits the dataset at the split date
+# and sets the trainData and testData
 def getDataSplitDate(filename, splitDate):
     df = checkFiles(filename)
 
@@ -132,19 +78,8 @@ def getDataSplitDate(filename, splitDate):
     date = datetime.strptime(splitDate, '%Y-%m-%d')
     testStartDate = date + timedelta(days=1)
     testStartDate = testStartDate.strftime('%Y-%m-%d')
-
-    ## Code for testing dates
-    #print('splitDate:',splitDate)
-    #print('testStartDate:',testStartDate)
-#
-    #splitDate = '2020-09-01'
-    #testStartDate = '2020-09-02'
-#
-    ## Code for testing dates
-    #print('splitDate:',splitDate)
-    #print('testStartDate:',testStartDate)
-#
     
+    # Set the fulldata variable
     global fullData
     fullData = df
 
@@ -158,12 +93,9 @@ def getDataSplitDate(filename, splitDate):
     print('Train Dataset:',trainData.shape)
     print('Test Dataset:',testData.shape)
 
-    #trainData.to_csv("trainfilename.csv")
-    #testData.to_csv("testfilename.csv")        #test that the data is split correctly
-
-
 # This function gets the datafile name as well as the 'ratio' number
 # it then runs the file checker to get the dataset, then splits the dataset at the split date
+# and sets the trainData and testData
 def getDataRatio(filename, ratio):
     df = checkFiles(filename)
 
@@ -190,6 +122,7 @@ def getDataRatio(filename, ratio):
     print('trainEndDate Dataset:',trainEndDate)
     print('testStartDate:',testStartDate)
 
+    # Set the fulldata variable
     global fullData
     fullData = df
 
@@ -201,11 +134,8 @@ def getDataRatio(filename, ratio):
     testData = df[testStartDate:TEST_END]
     testData = testData.drop(testData.columns[[0]], axis=1)
 
-    #trainData.to_csv("trainfilename.csv")
-    #testData.to_csv("testfilename.csv")        #test that the data is split correctly
-
+    # Function for running ARIMA or SARIMA predictions
 def ARIMA_prediction():
-
     # assign train and test data to variables
     train = trainData['Close'].values
     test1 = testData[1:]
@@ -233,6 +163,7 @@ def ARIMA_prediction():
         print('predicted=%f, expected=%f' % (forecast, expected))
     return predictions
 
+    # Function for running the multivariate prediction
 def multivariate_prediction(layer_num, layer_size, layer_name):
     # make a copy of the train and test dataframes
     train_df = trainData.sort_values(by=['Date']).copy()
@@ -308,7 +239,8 @@ def multivariate_prediction(layer_num, layer_size, layer_name):
     
     return y_pred
 
-def createModel(layer_num, layer_size, layer_name, dropout):
+    # Function for making the LSTM, GRU or SimpleRNN models
+def createModelRNN(layer_num, layer_size, layer_name, dropout):
     #Declare some variables so the model knows whats what
     PRICE_VALUE = "Close"
 
@@ -406,7 +338,7 @@ def forest_loop(test, train):
         predictions.append(forestPrediction)
     return predictions
 
-
+    # main function to run the rest of the random forest sub functions
 def runTestForest():
     # get test + train data and make local variables
     global testData
@@ -423,6 +355,7 @@ def runTestForest():
 
     return forestPrediction
 
+    # function to run the prohpet prediction
 def runTestProphet():
     #Get pre-split data 
     # Only need to extract Close because the date is the index, and as such is automatically transfered over too
@@ -456,14 +389,17 @@ def runTestProphet():
     plt.legend()
     plt.show()
 
+    # function for running most of the prediction functions. It starts the ARIMA_prediction (ensemble) and multivariate_prediction 
+    # functions but the code is further above. This function runs most of the prediction for the LSTM, GRU or SimpleRNN models that
+    # other than what is in the createModelRNN function. It then also does some post-processing on the data so it can all be 
+    # displayed on a graph and finally plots and shows the graph
 def runTest():
     if ENSEMBLE:
         arima_pred = ARIMA_prediction()
     if MULTIVARIATE:
         multi_pred = multivariate_prediction(LAYER_NUM, LAYER_SIZE, LAYER_NAME)
     
-    #createModel2(layer_num, layer_size, layer_name, dropout):
-    model = createModel(LAYER_NUM, LAYER_SIZE, LAYER_NAME, DROPOUT)
+    model = createModelRNN(LAYER_NUM, LAYER_SIZE, LAYER_NAME, DROPOUT)
 
     #Make sure it knows that testData is refering to the global
     global testData
@@ -475,9 +411,7 @@ def runTest():
     # Test the model accuracy on existing data
     #------------------------------------------------------------------------------
 
-    # The above bug is the reason for the following line of code
     testData = testData[1:]
-    #testData.to_csv("testfilename.csv") 
     actual_prices = testData[PRICE_VALUE].values
     total_dataset = pd.concat((trainData[PRICE_VALUE], testData[PRICE_VALUE]), axis=0)
     model_inputs = total_dataset[len(total_dataset) - len(testData) - LOOKBACK_DAYS:].values
@@ -486,7 +420,6 @@ def runTest():
     # data from the training period
 
     model_inputs = model_inputs.reshape(-1, 1)
-    # TO DO: Explain the above line
 
     model_inputs = scaler.transform(model_inputs)
     # We again normalize our closing price data to fit them into the range (0,1)
@@ -499,9 +432,9 @@ def runTest():
     for x in range(LOOKBACK_DAYS, len(model_inputs)):
         x_test.append(model_inputs[x - LOOKBACK_DAYS:x, 0])
 
+    # set x_test to be an nparray, then reshape it
     x_test = np.array(x_test)
     x_test = np.reshape(x_test, (x_test.shape[0], x_test.shape[1], 1))
-    # TO DO: Explain the above 5 lines
 
     predicted_prices = model.predict(x_test)
     predicted_prices = scaler.inverse_transform(predicted_prices)
@@ -557,15 +490,18 @@ def runTest():
         df_multiPrices = df_multiPrices.set_index("Index")
         df_multiPrices['Close'] = np.array(multi_pred)
 
+
+    # I made this, but i don't really remember what it does. 
     ensemble_preds = None
     if ENSEMBLE:
         predicted_prices_list = predicted_prices.tolist()
-
         i = 0
         for value in arima_pred:
+            # first parameter is the array that the second parameter is being added to
             ensemble_preds = np.append(ensemble_preds, (arima_pred[i] + predicted_prices_list[i])/2)
             i += 1
-    
+
+    # plot ensemble data if set to in parameters
     if ENSEMBLE:
         plt.plot(ensemble_preds, color="green", label=f"Ensemble Predicted {COMPANY} Price")
     else:
@@ -573,6 +509,7 @@ def runTest():
         plt.plot(df_futurePrices, color="orange", label=f"Predicted {COMPANY} Future Price")
         if MULTIVARIATE: # Display Multivariate data if it is enabled
             plt.plot(df_multiPrices, color="red", label=f"Predicted {COMPANY} multivariate Price")
+    # plot forest data if set to in parameters
     if FOREST: # Display Forest data if it is enabled
         forestPrediction = runTestForest()
         plt.plot(forestPrediction, color="purple", label=f"Predicted {COMPANY} forest Price")
@@ -613,14 +550,12 @@ def boxplotChart(filename):
     # Uses Matplotlib  to make the boxplot chart
     # uses grid=True to make a grid so the chart is easier to read
 
-    # Add axis labels
+    # Add axis labels and display the plot
     plt.xlabel("Stock Data Type")
     plt.ylabel("Price")
-
-    # Display the plot
     plt.show()
 
-def Main(): #Main function for deciding which split method was chosen
+def Main(): #Main function for deciding what functions to use
     #Make filename for the saved data file
     ticker_data_filename = os.path.join("data", f"{COMPANY}_{TRAIN_START}_{TEST_END}.csv")
     
