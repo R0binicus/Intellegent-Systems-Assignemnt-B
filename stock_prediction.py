@@ -195,6 +195,7 @@ def multivariate_prediction(layer_num, layer_size, layer_name):
     train_data = np_train_scaled
     test_data = np_test_scaled
     # Here, we create N samples, LOOKBACK_DAYS time steps per sample, and 6 features
+
     def partition_dataset(LOOKBACK_DAYS, data):
         x, y = [], []
         data_len = data.shape[0]
@@ -491,11 +492,12 @@ def runTest():
         df_multiPrices['Close'] = np.array(multi_pred)
 
 
-    # I made this, but i don't really remember what it does. 
+    # combine the RNN prediction value and the S/ARIMA prediction value and average them to make an ensemble value
     ensemble_preds = None
     if ENSEMBLE:
         predicted_prices_list = predicted_prices.tolist()
         i = 0
+        # for each predicted value from each mode, add the two together and to make the ensemble value
         for value in arima_pred:
             # first parameter is the array that the second parameter is being added to
             ensemble_preds = np.append(ensemble_preds, (arima_pred[i] + predicted_prices_list[i])/2)

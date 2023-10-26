@@ -10,15 +10,15 @@ from keras.layers import LSTM, SimpleRNN, GRU
 #
 
 DATA_SOURCE = "yahoo"
-COMPANY = "TSLA"
+COMPANY = "TSLA"                # Which comany's ticker symbol to use for the program
 
 TRAIN_START = '2016-06-01'      #Start date of dataset    #Must be in 'YYYY-MM-DD' format eg '2015-01-01'
 TEST_END = '2023-09-30'         #End date of dataset    #Must be in 'YYYY-MM-DD' format eg '2022-12-31'
 
-SPLIT_DATE = '2022-01-01'       #Split date of dataset    #Must be in 'YYYY-MM-DD' format eg '2020-09-01'
-    # WARNING must be on 2020-09-01 or later otherwise i don't think there is enough data to predict properly
+SPLIT_DATE = '2022-01-01'       #Split date of dataset    #Must be in 'YYYY-MM-DD' format eg '2022-01-01'
+    # WARNING must be on 2022-01-01 or later otherwise i don't think there is enough data to predict properly
 
-PREDICTION_DAYS = 30             # Number of days into the future to predict the stock prices
+PREDICTION_DAYS = 1             # Number of days into the future to predict the stock prices
 
 LOOKBACK_DAYS = 60              #Number of days to look back to base the prediction
                                 # 60 Original
@@ -28,7 +28,7 @@ RATIO = 5      #Int or Float    #Not actually a ration, but idk what else to cal
 
 FEATURE_COLUNMS = 'Open','High','Low','Close','Adj Close','Volume'
 
-MODE = 2
+MODE = 5
 # 1 = Split dataset into train/test sets by date, then predict
 # 2 = Split dataset into train/test sets by ratio, then predict
 # 3 = Make candlestick chart of data from past NDAYS
@@ -44,10 +44,10 @@ SCALER = True                   # Pick whether to predict and display Multivaria
 
 MULTIVARIATE = False            # Pick whether to predict and display Multivariate data in additional to other
 
-ENSEMBLE = True                 # Pick whether to use ensemble with arima/sarima or not
+ENSEMBLE = False                 # Pick whether to use ensemble with arima/sarima or not
 SARIMA = False                   # True for SARIMA false for ARIMA
 
-FOREST = True                   # True to make and display Random Forest Predictions
+FOREST = False                   # True to make and display Random Forest Predictions
 FOREST_ESTIMATORS = 10          # The number of estimators the Random Forest Model uses 
 
 PROPHET_TRAIN_OFFSET = 300      # The number of days to take off the end of the train data
@@ -62,11 +62,11 @@ PROPHET_TRAIN_OFFSET = 300      # The number of days to take off the end of the 
 
 # Default Parameters
 
-#RNN param
-LAYER_NUM = 2
-LAYER_SIZE = 50
-LAYER_NAME = SimpleRNN
-DROPOUT = 0.2
+#RNN param 
+LAYER_NUM = 2       # number of layers used   
+LAYER_SIZE = 50     # size of each layer
+LAYER_NAME = LSTM   # which type of RNN model is used
+DROPOUT = 0.2       # dropout
 
 #ARIMA param
 AUTOREG = 5     #Trend autoregression order
